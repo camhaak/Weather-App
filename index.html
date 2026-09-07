@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weather</title>
+<title>Tide &amp; Time — Fishing Conditions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,8 +14,6 @@
     --gold: #E3A857;
     --teal: #4C9F94;
     --slate: #6B7A99;
-    --hero-bg: var(--navy);
-    --hero-accent: var(--gold);
   }
 
   * { box-sizing: border-box; }
@@ -34,6 +32,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    padding-bottom: 30px;
   }
 
   /* Search */
@@ -55,9 +54,7 @@
     outline: none;
   }
 
-  .search-bar input:focus {
-    border-color: var(--slate);
-  }
+  .search-bar input:focus { border-color: var(--slate); }
 
   .search-bar button {
     font-family: 'Work Sans', sans-serif;
@@ -70,8 +67,6 @@
     color: var(--cream);
     cursor: pointer;
   }
-
-  .search-bar button:active { opacity: 0.85; }
 
   .locate-row {
     padding: 10px 20px 0;
@@ -133,57 +128,130 @@
   .hero {
     margin: 20px 20px 0;
     border-radius: 20px;
-    background: var(--hero-bg);
     color: var(--cream);
-    padding: 36px 28px 30px;
+    padding: 32px 28px 26px;
     text-align: center;
     transition: background 0.5s ease;
-    position: relative;
-    overflow: hidden;
   }
 
-  .hero-glyph {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 4px;
-  }
-
-  .hero-location {
-    font-size: 15px;
-    opacity: 0.85;
-    margin: 0 0 2px;
-  }
+  .hero-glyph { width: 52px; height: 52px; margin: 0 auto 4px; }
+  .hero-location { font-size: 15px; opacity: 0.85; margin: 0 0 2px; }
 
   .hero-temp {
     font-family: 'Fraunces', serif;
     font-weight: 500;
-    font-size: 88px;
+    font-size: 76px;
     line-height: 1;
     margin: 4px 0 0;
     letter-spacing: -0.02em;
   }
 
-  .hero-condition {
-    font-size: 17px;
-    margin: 6px 0 0;
-    color: var(--hero-accent);
-  }
+  .hero-condition { font-size: 16px; margin: 4px 0 0; }
 
   .hero-meta {
-    margin-top: 18px;
+    margin-top: 16px;
     display: flex;
     justify-content: center;
-    gap: 24px;
+    gap: 22px;
     font-size: 13px;
-    opacity: 0.8;
+    opacity: 0.85;
   }
 
-  /* Hourly */
-  .section-label {
+  /* Generic panel */
+  .panel {
+    margin: 20px 20px 0;
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px 20px;
+    border: 1.5px solid #E8E3D6;
+  }
+
+  .panel-title {
     font-size: 14px;
     color: var(--slate);
-    margin: 26px 20px 10px;
+    margin: 0 0 14px;
   }
+
+  /* Fishing conditions grid */
+  .cond-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .cond-item .label { font-size: 12.5px; color: var(--slate); margin-bottom: 4px; }
+  .cond-item .value { font-size: 20px; font-weight: 500; display: flex; align-items: baseline; gap: 6px; }
+  .cond-item .value .unit { font-size: 13px; color: var(--slate); font-weight: 400; }
+  .trend-arrow { font-size: 15px; }
+  .trend-rising { color: var(--teal); }
+  .trend-falling { color: #C4633F; }
+  .trend-steady { color: var(--slate); }
+
+  /* Sun & moon strip */
+  .sunmoon-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .sunmoon-col { display: flex; align-items: center; gap: 12px; }
+  .sunmoon-col svg { width: 30px; height: 30px; flex: 0 0 auto; }
+  .sunmoon-col .lines .t1 { font-size: 15px; font-weight: 500; }
+  .sunmoon-col .lines .t2 { font-size: 12.5px; color: var(--slate); }
+
+  .moon-name { font-size: 13px; color: var(--slate); margin-top: 12px; text-align: center; }
+
+  /* Solunar timeline */
+  .timeline-track {
+    position: relative;
+    height: 16px;
+    border-radius: 8px;
+    margin: 4px 2px 6px;
+    background: linear-gradient(to right, #DCE2EC 0%, #DCE2EC 100%);
+    overflow: hidden;
+  }
+
+  .tl-block {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 3px;
+  }
+
+  .tl-major { background: var(--teal); }
+  .tl-minor { background: #A9CFC8; }
+
+  .tl-now {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    background: var(--navy);
+  }
+
+  .tl-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--slate);
+    margin: 0 2px;
+  }
+
+  .solunar-legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 14px;
+    font-size: 13px;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--navy); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  .solunar-list { margin-top: 10px; font-size: 13.5px; color: var(--navy); line-height: 1.7; }
+  .solunar-list .kind { color: var(--slate); }
+
+  /* Hourly */
+  .section-label { font-size: 14px; color: var(--slate); margin: 26px 20px 10px; }
 
   .hourly-strip {
     display: flex;
@@ -195,29 +263,13 @@
 
   .hourly-strip::-webkit-scrollbar { display: none; }
 
-  .hour-item {
-    flex: 0 0 auto;
-    text-align: center;
-    min-width: 42px;
-  }
-
-  .hour-item .time {
-    font-size: 13px;
-    color: var(--slate);
-    margin-bottom: 8px;
-  }
-
+  .hour-item { flex: 0 0 auto; text-align: center; min-width: 42px; }
+  .hour-item .time { font-size: 13px; color: var(--slate); margin-bottom: 8px; }
   .hour-item svg { width: 22px; height: 22px; margin-bottom: 8px; }
-
-  .hour-item .temp {
-    font-size: 15px;
-    font-weight: 500;
-  }
+  .hour-item .temp { font-size: 15px; font-weight: 500; }
 
   /* Daily */
-  .daily-list {
-    margin: 6px 20px 30px;
-  }
+  .daily-list { margin: 6px 20px 0; }
 
   .daily-row {
     display: flex;
@@ -228,40 +280,17 @@
   }
 
   .daily-row:last-child { border-bottom: none; }
-
-  .daily-row .day {
-    width: 84px;
-    font-size: 15px;
-  }
-
+  .daily-row .day { width: 84px; font-size: 15px; }
   .daily-row svg { width: 20px; height: 20px; flex: 0 0 auto; }
-
-  .daily-row .cond {
-    flex: 1;
-    font-size: 14px;
-    color: var(--slate);
-  }
-
-  .daily-row .range {
-    font-size: 15px;
-    text-align: right;
-    white-space: nowrap;
-  }
-
+  .daily-row .cond { flex: 1; font-size: 14px; color: var(--slate); }
+  .daily-row .range { font-size: 15px; text-align: right; white-space: nowrap; }
   .daily-row .range .lo { color: var(--slate); }
 
-  .status {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--slate);
-    font-size: 15px;
-  }
-
+  .status { text-align: center; padding: 60px 20px; color: var(--slate); font-size: 15px; }
   .hidden { display: none !important; }
+  .note { font-size: 12.5px; color: var(--slate); margin-top: 12px; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .hero { transition: none; }
-  }
+  @media (prefers-reduced-motion: reduce) { .hero { transition: none; } }
 </style>
 </head>
 <body>
@@ -269,7 +298,7 @@
 <div class="app">
 
   <div class="search-bar">
-    <input type="text" id="cityInput" placeholder="Search a city" autocomplete="off">
+    <input type="text" id="cityInput" placeholder="Search a coastal spot" autocomplete="off">
     <button id="searchBtn">Search</button>
   </div>
 
@@ -281,11 +310,12 @@
   <div class="results" id="results"></div>
 
   <div id="content">
-    <div class="status" id="status">Search for a city or use your location to see the forecast.</div>
+    <div class="status" id="status">Search a spot or use your location to see today's fishing conditions.</div>
   </div>
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
 <script>
   const cityInput = document.getElementById('cityInput');
   const searchBtn = document.getElementById('searchBtn');
@@ -294,8 +324,8 @@
   const resultsEl = document.getElementById('results');
   const contentEl = document.getElementById('content');
 
-  let unit = 'celsius'; // or fahrenheit
-  let lastCoords = null; // { lat, lon, name }
+  let unit = 'celsius';
+  let lastCoords = null;
 
   // ---- Weather code -> description + glyph ----
   function describeCode(code) {
@@ -313,35 +343,55 @@
   function glyphFor(kind, color) {
     const c = color || 'currentColor';
     switch (kind) {
-      case 'sun':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke-linecap="round"/></svg>`;
-      case 'cloud-sun':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><circle cx="8" cy="9" r="3.2"/><path d="M8 2.5v2M13.5 4.5l-1.4 1.4M2.5 9h2" stroke-linecap="round"/><path d="M6 20h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 20Z"/></svg>`;
-      case 'cloud':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 18h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 18Z"/></svg>`;
-      case 'rain':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 14h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 14Z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" stroke-linecap="round"/></svg>`;
-      case 'snow':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 13h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 13Z"/><path d="M9 18v4M9 19l-1.5 1M9 19l1.5 1M15 18v4M15 19l-1.5 1M15 19l1.5 1" stroke-linecap="round"/></svg>`;
-      case 'storm':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 12h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 12Z"/><path d="M13 15l-3 5h3l-2 4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      case 'fog':
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M4 9h13M4 13h16M4 17h11" stroke-linecap="round"/></svg>`;
-      default:
-        return '';
+      case 'sun': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke-linecap="round"/></svg>`;
+      case 'cloud-sun': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><circle cx="8" cy="9" r="3.2"/><path d="M8 2.5v2M13.5 4.5l-1.4 1.4M2.5 9h2" stroke-linecap="round"/><path d="M6 20h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 20Z"/></svg>`;
+      case 'cloud': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 18h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 18Z"/></svg>`;
+      case 'rain': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 14h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 14Z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" stroke-linecap="round"/></svg>`;
+      case 'snow': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 13h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 13Z"/><path d="M9 18v4M9 19l-1.5 1M9 19l1.5 1M15 18v4M15 19l-1.5 1M15 19l1.5 1" stroke-linecap="round"/></svg>`;
+      case 'storm': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M6 12h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 12Z"/><path d="M13 15l-3 5h3l-2 4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      case 'fog': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6"><path d="M4 9h13M4 13h16M4 17h11" stroke-linecap="round"/></svg>`;
+      default: return '';
     }
+  }
+
+  function sunGlyph(color) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.6"><circle cx="12" cy="14" r="4.5"/><path d="M12 2v2.5M4 14H2M22 14h-2M5.6 6.6l1.6 1.6M18.4 6.6l-1.6 1.6M4 20h16" stroke-linecap="round"/></svg>`;
+  }
+
+  function moonPhaseGlyph(phase, color, shadow) {
+    const size = 30, r = 13, c = 15;
+    const angle = phase * 2 * Math.PI;
+    const rx = Math.abs(Math.cos(angle)) * r;
+    const waxing = phase < 0.5;
+    const sweep1 = waxing ? 1 : 0;
+    const sweep2 = waxing ? 0 : 1;
+    return `<svg viewBox="0 0 30 30">
+      <circle cx="${c}" cy="${c}" r="${r}" fill="${shadow}"/>
+      <path d="M ${c} ${c - r} A ${rx} ${r} 0 0 ${sweep1} ${c} ${c + r} A ${r} ${r} 0 0 ${sweep2} ${c} ${c - r} Z" fill="${color}"/>
+    </svg>`;
+  }
+
+  function moonPhaseName(phase) {
+    if (phase < 0.03 || phase > 0.97) return 'New Moon';
+    if (phase < 0.22) return 'Waxing Crescent';
+    if (phase < 0.28) return 'First Quarter';
+    if (phase < 0.47) return 'Waxing Gibbous';
+    if (phase < 0.53) return 'Full Moon';
+    if (phase < 0.72) return 'Waning Gibbous';
+    if (phase < 0.78) return 'Last Quarter';
+    return 'Waning Crescent';
   }
 
   function heroColorsFor(kind) {
     if (kind === 'sun' || kind === 'cloud-sun') return { bg: '#3A3054', accent: '#E3A857' };
-    if (kind === 'rain' || kind === 'storm' || kind === 'drizzle') return { bg: '#1C2541', accent: '#4C9F94' };
+    if (kind === 'rain' || kind === 'storm') return { bg: '#1C2541', accent: '#4C9F94' };
     if (kind === 'snow') return { bg: '#2B3A55', accent: '#F5F3EE' };
     return { bg: '#1C2541', accent: '#6B7A99' };
   }
 
-  function fmtTemp(celsiusValue) {
-    if (celsiusValue === null || celsiusValue === undefined) return '--';
-    const v = unit === 'celsius' ? celsiusValue : (celsiusValue * 9/5 + 32);
+  function fmtTemp(c) {
+    if (c === null || c === undefined || isNaN(c)) return '--';
+    const v = unit === 'celsius' ? c : (c * 9/5 + 32);
     return Math.round(v) + '°';
   }
 
@@ -358,6 +408,16 @@
     h = h % 12; if (h === 0) h = 12;
     return h + ampm;
   }
+
+  function clockLabel(d) {
+    if (!d) return '--';
+    let h = d.getHours(), m = d.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
+  }
+
+  function minutesOfDay(d) { return d.getHours() * 60 + d.getMinutes(); }
 
   // ---- Geocoding search ----
   async function searchCity(query) {
@@ -398,16 +458,12 @@
     }
   }
 
-  // ---- Geolocation ----
   locateBtn.addEventListener('click', () => {
-    if (!navigator.geolocation) {
-      showStatus("Your browser doesn't support location. Try searching instead.");
-      return;
-    }
+    if (!navigator.geolocation) { showStatus("Your browser doesn't support location. Try searching instead."); return; }
     showStatus('Finding your location…');
     navigator.geolocation.getCurrentPosition(
       (pos) => loadWeather(pos.coords.latitude, pos.coords.longitude, 'Your location'),
-      () => showStatus("Couldn't get your location. Try searching for a city instead.")
+      () => showStatus("Couldn't get your location. Try searching for a spot instead.")
     );
   });
 
@@ -417,86 +473,239 @@
     if (lastCoords) loadWeather(lastCoords.lat, lastCoords.lon, lastCoords.name);
   });
 
-  function showStatus(msg) {
-    contentEl.innerHTML = `<div class="status">${msg}</div>`;
+  function showStatus(msg) { contentEl.innerHTML = `<div class="status">${msg}</div>`; }
+
+  // ---- Solunar calculation ----
+  function computeSolunar(lat, lon, dayStart) {
+    const samples = [];
+    for (let m = -360; m <= 24 * 60 + 360; m += 5) {
+      const t = new Date(dayStart.getTime() + m * 60000);
+      const pos = SunCalc.getMoonPosition(t, lat, lon);
+      samples.push({ t, alt: pos.altitude });
+    }
+    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+    const majors = [];
+    for (let i = 1; i < samples.length - 1; i++) {
+      const { t, alt } = samples[i];
+      if (t < dayStart || t > dayEnd) continue;
+      const isMax = alt > samples[i - 1].alt && alt > samples[i + 1].alt;
+      const isMin = alt < samples[i - 1].alt && alt < samples[i + 1].alt;
+      if (isMax || isMin) majors.push({ center: t });
+    }
+    const moonTimes = SunCalc.getMoonTimes(dayStart, lat, lon);
+    const minors = [];
+    if (moonTimes.rise) minors.push({ center: moonTimes.rise, label: 'moonrise' });
+    if (moonTimes.set) minors.push({ center: moonTimes.set, label: 'moonset' });
+    return { majors, minors };
   }
 
-  // ---- Fetch + render weather ----
+  // ---- Fetch + render ----
   async function loadWeather(lat, lon, name) {
     lastCoords = { lat, lon, name };
-    showStatus('Loading forecast…');
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m` +
-      `&hourly=temperature_2m,weather_code` +
-      `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
-      `&temperature_unit=celsius&timezone=auto&forecast_days=6`;
+    showStatus('Loading conditions…');
+
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure` +
+      `&hourly=temperature_2m,weather_code,surface_pressure` +
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset` +
+      `&past_hours=6&forecast_days=6&temperature_unit=celsius&timezone=auto`;
+
+    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}` +
+      `&hourly=wave_height,sea_surface_temperature&past_hours=1&forecast_days=1&timezone=auto`;
+
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('bad response');
-      const data = await res.json();
-      render(data, name);
+      const [forecastRes, marineRes] = await Promise.all([
+        fetch(forecastUrl),
+        fetch(marineUrl).catch(() => null)
+      ]);
+      if (!forecastRes.ok) throw new Error('forecast failed');
+      const data = await forecastRes.json();
+      let marine = null;
+      if (marineRes && marineRes.ok) {
+        try { marine = await marineRes.json(); } catch (e) { marine = null; }
+      }
+      render(data, marine, name, lat, lon);
     } catch (err) {
-      showStatus("Couldn't load the forecast. Check your connection and try again.");
+      showStatus("Couldn't load conditions. Check your connection and try again.");
     }
   }
 
-  function render(data, name) {
+  function render(data, marine, name, lat, lon) {
     const current = data.current;
     const desc = describeCode(current.weather_code);
     const colors = heroColorsFor(desc.kind);
+    const nowDate = new Date(current.time);
 
-    // Next 8 hours starting from current hour
-    const nowIso = data.current.time;
+    // Hourly index alignment (past_hours=6 means array includes recent past)
     const hourlyTimes = data.hourly.time;
-    let startIdx = hourlyTimes.findIndex(t => t >= nowIso);
-    if (startIdx === -1) startIdx = 0;
+    let nowIdx = hourlyTimes.findIndex(t => t >= current.time);
+    if (nowIdx === -1) nowIdx = hourlyTimes.length - 1;
+
+    // Pressure trend (compare to 3h ago)
+    const pressureNow = current.surface_pressure;
+    const pastIdx = Math.max(0, nowIdx - 3);
+    const pressurePast = data.hourly.surface_pressure[pastIdx];
+    const pDiff = pressureNow - pressurePast;
+    let trend = { label: 'Steady', cls: 'trend-steady', arrow: '→' };
+    if (pDiff <= -1) trend = { label: 'Falling', cls: 'trend-falling', arrow: '↓' };
+    else if (pDiff >= 1) trend = { label: 'Rising', cls: 'trend-rising', arrow: '↑' };
+
+    // Marine data
+    let waterTemp = null, waveHeight = null;
+    if (marine && marine.hourly) {
+      const mTimes = marine.hourly.time;
+      let mIdx = mTimes.findIndex(t => t >= current.time);
+      if (mIdx === -1) mIdx = mTimes.length - 1;
+      waterTemp = marine.hourly.sea_surface_temperature ? marine.hourly.sea_surface_temperature[mIdx] : null;
+      waveHeight = marine.hourly.wave_height ? marine.hourly.wave_height[mIdx] : null;
+    }
+
+    // Sun times
+    const sunrise = new Date(data.daily.sunrise[0]);
+    const sunset = new Date(data.daily.sunset[0]);
+
+    // Moon
+    const illum = SunCalc.getMoonIllumination(nowDate);
+    const moonTimesToday = SunCalc.getMoonTimes(nowDate, lat, lon);
+
+    // Solunar
+    const dayStart = new Date(nowDate); dayStart.setHours(0, 0, 0, 0);
+    const solunar = computeSolunar(lat, lon, dayStart);
+
+    // Next 8 hours
     const hours = [];
-    for (let i = startIdx; i < startIdx + 8 && i < hourlyTimes.length; i++) {
-      hours.push({
-        time: hourlyTimes[i],
-        temp: data.hourly.temperature_2m[i],
-        code: data.hourly.weather_code[i]
-      });
+    for (let i = nowIdx; i < nowIdx + 8 && i < hourlyTimes.length; i++) {
+      hours.push({ time: hourlyTimes[i], temp: data.hourly.temperature_2m[i], code: data.hourly.weather_code[i] });
     }
 
     const days = data.daily.time.map((t, i) => ({
-      date: t,
-      code: data.daily.weather_code[i],
-      hi: data.daily.temperature_2m_max[i],
-      lo: data.daily.temperature_2m_min[i]
+      date: t, code: data.daily.weather_code[i],
+      hi: data.daily.temperature_2m_max[i], lo: data.daily.temperature_2m_min[i]
     }));
 
     const hourlyHtml = hours.map(h => {
       const d = describeCode(h.code);
-      return `
-        <div class="hour-item">
-          <div class="time">${hourLabel(h.time)}</div>
-          ${glyphFor(d.kind, '#1C2541')}
-          <div class="temp">${fmtTemp(h.temp)}</div>
-        </div>`;
+      return `<div class="hour-item"><div class="time">${hourLabel(h.time)}</div>${glyphFor(d.kind, '#1C2541')}<div class="temp">${fmtTemp(h.temp)}</div></div>`;
     }).join('');
 
     const dailyHtml = days.map((d, i) => {
-      const desc = describeCode(d.code);
-      return `
-        <div class="daily-row">
-          <div class="day">${dayLabel(d.date, i)}</div>
-          ${glyphFor(desc.kind, '#6B7A99')}
-          <div class="cond">${desc.text}</div>
-          <div class="range"><span>${fmtTemp(d.hi)}</span> <span class="lo">${fmtTemp(d.lo)}</span></div>
-        </div>`;
+      const desc2 = describeCode(d.code);
+      return `<div class="daily-row"><div class="day">${dayLabel(d.date, i)}</div>${glyphFor(desc2.kind, '#6B7A99')}<div class="cond">${desc2.text}</div><div class="range"><span>${fmtTemp(d.hi)}</span> <span class="lo">${fmtTemp(d.lo)}</span></div></div>`;
     }).join('');
 
+    // Fishing conditions grid
+    const waterTempHtml = waterTemp !== null
+      ? `<div class="value">${fmtTemp(waterTemp)}</div>`
+      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">Not available here</div>`;
+    const waveHtml = waveHeight !== null
+      ? `<div class="value">${waveHeight.toFixed(1)}<span class="unit">m</span></div>`
+      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">Not available here</div>`;
+
+    const condHtml = `
+      <div class="cond-grid">
+        <div class="cond-item">
+          <div class="label">Pressure</div>
+          <div class="value">${Math.round(pressureNow)}<span class="unit">hPa</span> <span class="trend-arrow ${trend.cls}">${trend.arrow}</span></div>
+          <div class="note" style="margin-top:2px;">${trend.label} (3h)</div>
+        </div>
+        <div class="cond-item">
+          <div class="label">Wind</div>
+          <div class="value">${Math.round(current.wind_speed_10m)}<span class="unit">km/h</span></div>
+        </div>
+        <div class="cond-item">
+          <div class="label">Water temp</div>
+          ${waterTempHtml}
+        </div>
+        <div class="cond-item">
+          <div class="label">Wave height</div>
+          ${waveHtml}
+        </div>
+      </div>
+    `;
+
+    const sunMoonHtml = `
+      <div class="sunmoon-grid">
+        <div class="sunmoon-col">
+          ${sunGlyph('#E3A857')}
+          <div class="lines"><div class="t1">${clockLabel(sunrise)}</div><div class="t2">Sunrise</div></div>
+        </div>
+        <div class="sunmoon-col">
+          ${sunGlyph('#6B7A99')}
+          <div class="lines"><div class="t1">${clockLabel(sunset)}</div><div class="t2">Sunset</div></div>
+        </div>
+        <div class="sunmoon-col">
+          ${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541')}
+          <div class="lines"><div class="t1">${moonTimesToday.rise ? clockLabel(moonTimesToday.rise) : '--'}</div><div class="t2">Moonrise</div></div>
+        </div>
+        <div class="sunmoon-col">
+          ${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541')}
+          <div class="lines"><div class="t1">${moonTimesToday.set ? clockLabel(moonTimesToday.set) : '--'}</div><div class="t2">Moonset</div></div>
+        </div>
+      </div>
+      <div class="moon-name">${moonPhaseName(illum.phase)} · ${Math.round(illum.fraction * 100)}% illuminated</div>
+    `;
+
+    // Timeline blocks
+    const dayMinutes = 24 * 60;
+    function blockStyle(center, halfWidthMin, cls) {
+      const centerMin = minutesOfDay(center) + (center.getDate() !== dayStart.getDate() ? (center < dayStart ? -dayMinutes : dayMinutes) : 0);
+      let left = centerMin - halfWidthMin;
+      let width = halfWidthMin * 2;
+      left = Math.max(0, left);
+      width = Math.min(dayMinutes, left + width) - left;
+      if (width <= 0) return '';
+      const leftPct = (left / dayMinutes) * 100;
+      const widthPct = (width / dayMinutes) * 100;
+      return `<div class="tl-block ${cls}" style="left:${leftPct}%; width:${widthPct}%;"></div>`;
+    }
+
+    let tlBlocks = '';
+    solunar.majors.forEach(m => { tlBlocks += blockStyle(m.center, 60, 'tl-major'); });
+    solunar.minors.forEach(m => { tlBlocks += blockStyle(m.center, 30, 'tl-minor'); });
+    const nowPct = (minutesOfDay(nowDate) / dayMinutes) * 100;
+
+    const solunarListHtml = [
+      ...solunar.majors.map(m => `<div><span class="kind">Major</span> — ${clockLabel(m.center)} (2h window)</div>`),
+      ...solunar.minors.map(m => `<div><span class="kind">Minor</span> — ${clockLabel(m.center)} (${m.label})</div>`)
+    ].join('');
+
+    const solunarHtml = `
+      <div class="timeline-track">
+        ${tlBlocks}
+        <div class="tl-now" style="left:${nowPct}%;"></div>
+      </div>
+      <div class="tl-labels"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>12am</span></div>
+      <div class="solunar-legend">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--teal);"></span>Major period</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#A9CFC8;"></span>Minor period</div>
+      </div>
+      <div class="solunar-list">${solunarListHtml}</div>
+    `;
+
     contentEl.innerHTML = `
-      <div class="hero" style="--hero-bg:${colors.bg}; background:${colors.bg}">
+      <div class="hero" style="background:${colors.bg}">
         <div class="hero-glyph" style="color:${colors.accent}">${glyphFor(desc.kind, colors.accent)}</div>
         <p class="hero-location">${name}</p>
         <p class="hero-temp">${fmtTemp(current.temperature_2m)}</p>
         <p class="hero-condition" style="color:${colors.accent}">${desc.text}</p>
         <div class="hero-meta">
           <span>Feels like ${fmtTemp(current.apparent_temperature)}</span>
-          <span>Wind ${Math.round(current.wind_speed_10m)} km/h</span>
         </div>
+      </div>
+
+      <div class="panel">
+        <p class="panel-title">Fishing conditions</p>
+        ${condHtml}
+      </div>
+
+      <div class="panel">
+        <p class="panel-title">Sun &amp; moon</p>
+        ${sunMoonHtml}
+      </div>
+
+      <div class="panel">
+        <p class="panel-title">Solunar periods — today</p>
+        ${solunarHtml}
       </div>
 
       <p class="section-label">Next hours</p>

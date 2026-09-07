@@ -36,11 +36,7 @@
   }
 
   /* Search */
-  .search-bar {
-    display: flex;
-    gap: 8px;
-    padding: 20px 20px 0;
-  }
+  .search-bar { display: flex; gap: 8px; padding: 20px 20px 0; }
 
   .search-bar input {
     flex: 1;
@@ -68,117 +64,92 @@
     cursor: pointer;
   }
 
-  .locate-row {
-    padding: 10px 20px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+  .locate-row { padding: 10px 20px 0; display: flex; justify-content: space-between; align-items: center; }
 
   .locate-link {
-    font-size: 14px;
-    color: var(--slate);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    font-size: 14px; color: var(--slate); background: none; border: none;
+    cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px;
   }
 
   .unit-toggle {
-    font-size: 14px;
-    color: var(--slate);
-    background: none;
-    border: 1px solid #DDD8CC;
-    border-radius: 20px;
-    padding: 4px 12px;
-    cursor: pointer;
+    font-size: 14px; color: var(--slate); background: none;
+    border: 1px solid #DDD8CC; border-radius: 20px; padding: 4px 12px; cursor: pointer;
   }
 
   .results {
-    margin: 8px 20px 0;
-    background: #fff;
-    border: 1.5px solid #DDD8CC;
-    border-radius: 10px;
-    overflow: hidden;
-    display: none;
+    margin: 8px 20px 0; background: #fff; border: 1.5px solid #DDD8CC;
+    border-radius: 10px; overflow: hidden; display: none;
   }
 
   .results.show { display: block; }
 
   .results button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 12px 14px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid #EEEAE0;
-    font-family: 'Work Sans', sans-serif;
-    font-size: 15px;
-    color: var(--navy);
-    cursor: pointer;
+    display: block; width: 100%; text-align: left; padding: 12px 14px;
+    background: none; border: none; border-bottom: 1px solid #EEEAE0;
+    font-family: 'Work Sans', sans-serif; font-size: 15px; color: var(--navy); cursor: pointer;
   }
 
   .results button:last-child { border-bottom: none; }
   .results button:hover { background: #F9F7F2; }
 
+  /* Day picker */
+  .day-picker {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 18px 20px 4px;
+    scrollbar-width: none;
+  }
+
+  .day-picker::-webkit-scrollbar { display: none; }
+
+  .day-chip {
+    flex: 0 0 auto;
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13.5px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #DDD8CC;
+    background: #fff;
+    color: var(--navy);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .day-chip.selected { background: var(--navy); border-color: var(--navy); color: var(--cream); }
+  .day-chip.is-today:not(.selected) { border-color: var(--teal); color: var(--teal); font-weight: 500; }
+
   /* Hero */
   .hero {
-    margin: 20px 20px 0;
+    margin: 14px 20px 0;
     border-radius: 20px;
     color: var(--cream);
-    padding: 32px 28px 26px;
+    padding: 30px 28px 24px;
     text-align: center;
     transition: background 0.5s ease;
   }
 
-  .hero-glyph { width: 52px; height: 52px; margin: 0 auto 4px; }
+  .hero-glyph { width: 50px; height: 50px; margin: 0 auto 4px; }
   .hero-location { font-size: 15px; opacity: 0.85; margin: 0 0 2px; }
+  .hero-date-tag { font-size: 12px; opacity: 0.65; margin: 0 0 6px; text-transform: none; }
 
   .hero-temp {
-    font-family: 'Fraunces', serif;
-    font-weight: 500;
-    font-size: 76px;
-    line-height: 1;
-    margin: 4px 0 0;
-    letter-spacing: -0.02em;
+    font-family: 'Fraunces', serif; font-weight: 500; font-size: 72px;
+    line-height: 1; margin: 4px 0 0; letter-spacing: -0.02em;
   }
 
   .hero-condition { font-size: 16px; margin: 4px 0 0; }
 
   .hero-meta {
-    margin-top: 16px;
-    display: flex;
-    justify-content: center;
-    gap: 22px;
-    font-size: 13px;
-    opacity: 0.85;
+    margin-top: 16px; display: flex; justify-content: center; gap: 22px;
+    font-size: 13px; opacity: 0.85;
   }
 
   /* Generic panel */
-  .panel {
-    margin: 20px 20px 0;
-    background: #fff;
-    border-radius: 16px;
-    padding: 18px 20px;
-    border: 1.5px solid #E8E3D6;
-  }
+  .panel { margin: 20px 20px 0; background: #fff; border-radius: 16px; padding: 18px 20px; border: 1.5px solid #E8E3D6; }
+  .panel-title { font-size: 14px; color: var(--slate); margin: 0 0 14px; }
 
-  .panel-title {
-    font-size: 14px;
-    color: var(--slate);
-    margin: 0 0 14px;
-  }
-
-  /* Fishing conditions grid */
-  .cond-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
+  .cond-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .cond-item .label { font-size: 12.5px; color: var(--slate); margin-bottom: 4px; }
   .cond-item .value { font-size: 20px; font-weight: 500; display: flex; align-items: baseline; gap: 6px; }
   .cond-item .value .unit { font-size: 13px; color: var(--slate); font-weight: 400; }
@@ -187,98 +158,43 @@
   .trend-falling { color: #C4633F; }
   .trend-steady { color: var(--slate); }
 
-  /* Sun & moon strip */
-  .sunmoon-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
+  .sunmoon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .sunmoon-col { display: flex; align-items: center; gap: 12px; }
   .sunmoon-col svg { width: 30px; height: 30px; flex: 0 0 auto; }
   .sunmoon-col .lines .t1 { font-size: 15px; font-weight: 500; }
   .sunmoon-col .lines .t2 { font-size: 12.5px; color: var(--slate); }
-
   .moon-name { font-size: 13px; color: var(--slate); margin-top: 12px; text-align: center; }
 
-  /* Solunar timeline */
   .timeline-track {
-    position: relative;
-    height: 16px;
-    border-radius: 8px;
-    margin: 4px 2px 6px;
-    background: linear-gradient(to right, #DCE2EC 0%, #DCE2EC 100%);
-    overflow: hidden;
+    position: relative; height: 16px; border-radius: 8px; margin: 4px 2px 6px;
+    background: #DCE2EC; overflow: hidden;
   }
 
-  .tl-block {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    border-radius: 3px;
-  }
-
+  .tl-block { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
   .tl-major { background: var(--teal); }
   .tl-minor { background: #A9CFC8; }
+  .tl-now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--navy); }
 
-  .tl-now {
-    position: absolute;
-    top: -3px;
-    bottom: -3px;
-    width: 2px;
-    background: var(--navy);
-  }
+  .tl-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--slate); margin: 0 2px; }
 
-  .tl-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--slate);
-    margin: 0 2px;
-  }
-
-  .solunar-legend {
-    display: flex;
-    gap: 18px;
-    margin-top: 14px;
-    font-size: 13px;
-  }
-
+  .solunar-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 13px; }
   .legend-item { display: flex; align-items: center; gap: 6px; color: var(--navy); }
   .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
-
   .solunar-list { margin-top: 10px; font-size: 13.5px; color: var(--navy); line-height: 1.7; }
   .solunar-list .kind { color: var(--slate); }
 
-  /* Hourly */
   .section-label { font-size: 14px; color: var(--slate); margin: 26px 20px 10px; }
 
-  .hourly-strip {
-    display: flex;
-    gap: 18px;
-    overflow-x: auto;
-    padding: 0 20px 4px;
-    scrollbar-width: none;
-  }
-
+  .hourly-strip { display: flex; gap: 18px; overflow-x: auto; padding: 0 20px 4px; scrollbar-width: none; }
   .hourly-strip::-webkit-scrollbar { display: none; }
-
   .hour-item { flex: 0 0 auto; text-align: center; min-width: 42px; }
+  .hour-item.is-now .time { color: var(--teal); font-weight: 600; }
   .hour-item .time { font-size: 13px; color: var(--slate); margin-bottom: 8px; }
   .hour-item svg { width: 22px; height: 22px; margin-bottom: 8px; }
   .hour-item .temp { font-size: 15px; font-weight: 500; }
 
-  /* Daily */
   .daily-list { margin: 6px 20px 0; }
-
-  .daily-row {
-    display: flex;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #E5E1D6;
-    gap: 12px;
-  }
-
+  .daily-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #E5E1D6; gap: 12px; cursor: pointer; }
   .daily-row:last-child { border-bottom: none; }
   .daily-row .day { width: 84px; font-size: 15px; }
   .daily-row svg { width: 20px; height: 20px; flex: 0 0 auto; }
@@ -289,6 +205,7 @@
   .status { text-align: center; padding: 60px 20px; color: var(--slate); font-size: 15px; }
   .hidden { display: none !important; }
   .note { font-size: 12.5px; color: var(--slate); margin-top: 12px; }
+  .coverage-note { font-size: 12.5px; color: var(--slate); margin: 14px 20px 0; }
 
   @media (prefers-reduced-motion: reduce) { .hero { transition: none; } }
 </style>
@@ -309,8 +226,9 @@
 
   <div class="results" id="results"></div>
 
+  <div id="dayPickerWrap"></div>
   <div id="content">
-    <div class="status" id="status">Search a spot or use your location to see today's fishing conditions.</div>
+    <div class="status" id="status">Search a spot or use your location to see fishing conditions — past week through the next two.</div>
   </div>
 
 </div>
@@ -323,9 +241,16 @@
   const unitToggle = document.getElementById('unitToggle');
   const resultsEl = document.getElementById('results');
   const contentEl = document.getElementById('content');
+  const dayPickerWrap = document.getElementById('dayPickerWrap');
 
   let unit = 'celsius';
   let lastCoords = null;
+
+  // Cached wide-range data for the current location
+  let weatherData = null;
+  let marineData = null;
+  let todayStr = null;
+  let selectedDateStr = null;
 
   // ---- Weather code -> description + glyph ----
   function describeCode(code) {
@@ -359,7 +284,7 @@
   }
 
   function moonPhaseGlyph(phase, color, shadow) {
-    const size = 30, r = 13, c = 15;
+    const r = 13, c = 15;
     const angle = phase * 2 * Math.PI;
     const rx = Math.abs(Math.cos(angle)) * r;
     const waxing = phase < 0.5;
@@ -391,22 +316,8 @@
 
   function fmtTemp(c) {
     if (c === null || c === undefined || isNaN(c)) return '--';
-    const v = unit === 'celsius' ? c : (c * 9/5 + 32);
+    const v = unit === 'celsius' ? c : (c * 9 / 5 + 32);
     return Math.round(v) + '°';
-  }
-
-  function dayLabel(dateStr, index) {
-    if (index === 0) return 'Today';
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'short' });
-  }
-
-  function hourLabel(isoStr) {
-    const d = new Date(isoStr);
-    let h = d.getHours();
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12; if (h === 0) h = 12;
-    return h + ampm;
   }
 
   function clockLabel(d) {
@@ -418,6 +329,16 @@
   }
 
   function minutesOfDay(d) { return d.getHours() * 60 + d.getMinutes(); }
+
+  function chipLabel(dateStr, todayS) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date(todayS + 'T00:00:00');
+    const diffDays = Math.round((d - today) / 86400000);
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+  }
 
   // ---- Geocoding search ----
   async function searchCity(query) {
@@ -449,7 +370,7 @@
         btn.addEventListener('click', () => {
           resultsEl.classList.remove('show');
           cityInput.value = m.name;
-          loadWeather(m.latitude, m.longitude, m.name);
+          loadLocation(m.latitude, m.longitude, m.name);
         });
         resultsEl.appendChild(btn);
       });
@@ -462,7 +383,7 @@
     if (!navigator.geolocation) { showStatus("Your browser doesn't support location. Try searching instead."); return; }
     showStatus('Finding your location…');
     navigator.geolocation.getCurrentPosition(
-      (pos) => loadWeather(pos.coords.latitude, pos.coords.longitude, 'Your location'),
+      (pos) => loadLocation(pos.coords.latitude, pos.coords.longitude, 'Your location'),
       () => showStatus("Couldn't get your location. Try searching for a spot instead.")
     );
   });
@@ -470,12 +391,15 @@
   unitToggle.addEventListener('click', () => {
     unit = unit === 'celsius' ? 'fahrenheit' : 'celsius';
     unitToggle.textContent = unit === 'celsius' ? '°C' : '°F';
-    if (lastCoords) loadWeather(lastCoords.lat, lastCoords.lon, lastCoords.name);
+    if (weatherData) renderForDate(selectedDateStr);
   });
 
-  function showStatus(msg) { contentEl.innerHTML = `<div class="status">${msg}</div>`; }
+  function showStatus(msg) {
+    dayPickerWrap.innerHTML = '';
+    contentEl.innerHTML = `<div class="status">${msg}</div>`;
+  }
 
-  // ---- Solunar calculation ----
+  // ---- Solunar calculation (works for any date, no forecast-horizon limit) ----
   function computeSolunar(lat, lon, dayStart) {
     const samples = [];
     for (let m = -360; m <= 24 * 60 + 360; m += 5) {
@@ -499,19 +423,21 @@
     return { majors, minors };
   }
 
-  // ---- Fetch + render ----
-  async function loadWeather(lat, lon, name) {
+  // ---- Load a location: fetch the widest available range once ----
+  async function loadLocation(lat, lon, name) {
     lastCoords = { lat, lon, name };
     showStatus('Loading conditions…');
 
+    // Weather: past 7 days (observed) + next 16 days (forecast) — Open-Meteo's supported range
     const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure` +
+      `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure` +
       `&hourly=temperature_2m,weather_code,surface_pressure` +
       `&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset` +
-      `&past_hours=6&forecast_days=6&temperature_unit=celsius&timezone=auto`;
+      `&past_days=7&forecast_days=16&temperature_unit=celsius&timezone=auto`;
 
+    // Marine: shorter horizon — sea state models don't forecast as far out as the atmosphere
     const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}` +
-      `&hourly=wave_height,sea_surface_temperature&past_hours=1&forecast_days=1&timezone=auto`;
+      `&hourly=wave_height,sea_surface_temperature&past_days=5&forecast_days=8&timezone=auto`;
 
     try {
       const [forecastRes, marineRes] = await Promise.all([
@@ -519,98 +445,160 @@
         fetch(marineUrl).catch(() => null)
       ]);
       if (!forecastRes.ok) throw new Error('forecast failed');
-      const data = await forecastRes.json();
-      let marine = null;
+      weatherData = await forecastRes.json();
+      marineData = null;
       if (marineRes && marineRes.ok) {
-        try { marine = await marineRes.json(); } catch (e) { marine = null; }
+        try { marineData = await marineRes.json(); } catch (e) { marineData = null; }
       }
-      render(data, marine, name, lat, lon);
+      todayStr = weatherData.current.time.split('T')[0];
+      selectedDateStr = todayStr;
+      buildDayPicker();
+      renderForDate(selectedDateStr);
     } catch (err) {
       showStatus("Couldn't load conditions. Check your connection and try again.");
     }
   }
 
-  function render(data, marine, name, lat, lon) {
-    const current = data.current;
-    const desc = describeCode(current.weather_code);
+  function buildDayPicker() {
+    const dates = weatherData.daily.time;
+    const chips = dates.map(d => {
+      const isToday = d === todayStr;
+      const isSelected = d === selectedDateStr;
+      return `<button class="day-chip ${isSelected ? 'selected' : ''} ${isToday ? 'is-today' : ''}" data-date="${d}">${chipLabel(d, todayStr)}</button>`;
+    }).join('');
+    dayPickerWrap.innerHTML = `<div class="day-picker" id="dayPicker">${chips}</div>`;
+    document.querySelectorAll('.day-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedDateStr = btn.dataset.date;
+        document.querySelectorAll('.day-chip').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        renderForDate(selectedDateStr);
+      });
+    });
+  }
+
+  function findIndexForDateHour(times, dateStr, hh) {
+    const exact = `${dateStr}T${hh}`;
+    let idx = times.indexOf(exact);
+    if (idx !== -1) return idx;
+    // fall back to closest time on that date
+    let best = -1, bestDiff = Infinity;
+    const target = new Date(exact);
+    times.forEach((t, i) => {
+      if (!t.startsWith(dateStr)) return;
+      const diff = Math.abs(new Date(t) - target);
+      if (diff < bestDiff) { bestDiff = diff; best = i; }
+    });
+    return best;
+  }
+
+  // ---- Render the panels for a chosen date ----
+  function renderForDate(dateStr) {
+    const isToday = dateStr === todayStr;
+    const hourlyTimes = weatherData.hourly.time;
+
+    // Representative index: live "now" if today, otherwise midday (12:00) for that date
+    let repIdx;
+    if (isToday) {
+      repIdx = hourlyTimes.findIndex(t => t >= weatherData.current.time);
+      if (repIdx === -1) repIdx = hourlyTimes.length - 1;
+    } else {
+      repIdx = findIndexForDateHour(hourlyTimes, dateStr, '12:00');
+    }
+
+    if (repIdx === -1) {
+      contentEl.innerHTML = `<div class="status">No weather data available for this date.</div>`;
+      return;
+    }
+
+    const repCode = weatherData.hourly.weather_code[repIdx];
+    const repTemp = isToday ? weatherData.current.temperature_2m : weatherData.hourly.temperature_2m[repIdx];
+    const desc = describeCode(repCode);
     const colors = heroColorsFor(desc.kind);
-    const nowDate = new Date(current.time);
 
-    // Hourly index alignment (past_hours=6 means array includes recent past)
-    const hourlyTimes = data.hourly.time;
-    let nowIdx = hourlyTimes.findIndex(t => t >= current.time);
-    if (nowIdx === -1) nowIdx = hourlyTimes.length - 1;
-
-    // Pressure trend (compare to 3h ago)
-    const pressureNow = current.surface_pressure;
-    const pastIdx = Math.max(0, nowIdx - 3);
-    const pressurePast = data.hourly.surface_pressure[pastIdx];
-    const pDiff = pressureNow - pressurePast;
-    let trend = { label: 'Steady', cls: 'trend-steady', arrow: '→' };
-    if (pDiff <= -1) trend = { label: 'Falling', cls: 'trend-falling', arrow: '↓' };
-    else if (pDiff >= 1) trend = { label: 'Rising', cls: 'trend-rising', arrow: '↑' };
-
-    // Marine data
-    let waterTemp = null, waveHeight = null;
-    if (marine && marine.hourly) {
-      const mTimes = marine.hourly.time;
-      let mIdx = mTimes.findIndex(t => t >= current.time);
-      if (mIdx === -1) mIdx = mTimes.length - 1;
-      waterTemp = marine.hourly.sea_surface_temperature ? marine.hourly.sea_surface_temperature[mIdx] : null;
-      waveHeight = marine.hourly.wave_height ? marine.hourly.wave_height[mIdx] : null;
+    // Pressure + 24h trend (comparing to same hour previous day)
+    const pressureNow = isToday ? weatherData.current.surface_pressure : weatherData.hourly.surface_pressure[repIdx];
+    const prevDayIdx = repIdx - 24;
+    const pressurePrev = prevDayIdx >= 0 ? weatherData.hourly.surface_pressure[prevDayIdx] : null;
+    let trend = { label: 'No prior data', cls: 'trend-steady', arrow: '—' };
+    if (pressurePrev !== null && pressurePrev !== undefined) {
+      const diff = pressureNow - pressurePrev;
+      if (diff <= -1.5) trend = { label: 'Falling (24h)', cls: 'trend-falling', arrow: '↓' };
+      else if (diff >= 1.5) trend = { label: 'Rising (24h)', cls: 'trend-rising', arrow: '↑' };
+      else trend = { label: 'Steady (24h)', cls: 'trend-steady', arrow: '→' };
     }
 
-    // Sun times
-    const sunrise = new Date(data.daily.sunrise[0]);
-    const sunset = new Date(data.daily.sunset[0]);
+    const windNow = isToday ? weatherData.current.wind_speed_10m : null;
+    const windAt = windNow !== null ? windNow : (weatherData.hourly.wind_speed_10m ? weatherData.hourly.wind_speed_10m[repIdx] : null);
 
-    // Moon
-    const illum = SunCalc.getMoonIllumination(nowDate);
-    const moonTimesToday = SunCalc.getMoonTimes(nowDate, lat, lon);
-
-    // Solunar
-    const dayStart = new Date(nowDate); dayStart.setHours(0, 0, 0, 0);
-    const solunar = computeSolunar(lat, lon, dayStart);
-
-    // Next 8 hours
-    const hours = [];
-    for (let i = nowIdx; i < nowIdx + 8 && i < hourlyTimes.length; i++) {
-      hours.push({ time: hourlyTimes[i], temp: data.hourly.temperature_2m[i], code: data.hourly.weather_code[i] });
+    // Marine data at the same representative time, if within marine coverage
+    let waterTemp = null, waveHeight = null, marineAvailable = false;
+    if (marineData && marineData.hourly) {
+      const mTimes = marineData.hourly.time;
+      const mIdx = findIndexForDateHour(mTimes, dateStr, isToday ? mTimes.find(t => t >= weatherData.current.time)?.split('T')[1] || '12:00' : '12:00');
+      if (mIdx !== -1) {
+        marineAvailable = true;
+        waterTemp = marineData.hourly.sea_surface_temperature ? marineData.hourly.sea_surface_temperature[mIdx] : null;
+        waveHeight = marineData.hourly.wave_height ? marineData.hourly.wave_height[mIdx] : null;
+      }
     }
 
-    const days = data.daily.time.map((t, i) => ({
-      date: t, code: data.daily.weather_code[i],
-      hi: data.daily.temperature_2m_max[i], lo: data.daily.temperature_2m_min[i]
-    }));
+    // Sun times for this date
+    const dailyIdx = weatherData.daily.time.indexOf(dateStr);
+    const sunrise = dailyIdx !== -1 ? new Date(weatherData.daily.sunrise[dailyIdx]) : null;
+    const sunset = dailyIdx !== -1 ? new Date(weatherData.daily.sunset[dailyIdx]) : null;
+    const hi = dailyIdx !== -1 ? weatherData.daily.temperature_2m_max[dailyIdx] : null;
+    const lo = dailyIdx !== -1 ? weatherData.daily.temperature_2m_min[dailyIdx] : null;
 
-    const hourlyHtml = hours.map(h => {
-      const d = describeCode(h.code);
-      return `<div class="hour-item"><div class="time">${hourLabel(h.time)}</div>${glyphFor(d.kind, '#1C2541')}<div class="temp">${fmtTemp(h.temp)}</div></div>`;
+    // Moon + solunar — always computable, any date
+    const refDate = new Date(dateStr + 'T12:00:00');
+    const illum = SunCalc.getMoonIllumination(refDate);
+    const moonTimesToday = SunCalc.getMoonTimes(new Date(dateStr + 'T00:00:00'), lastCoords.lat, lastCoords.lon);
+    const dayStart = new Date(dateStr + 'T00:00:00');
+    const solunar = computeSolunar(lastCoords.lat, lastCoords.lon, dayStart);
+
+    // 8 evenly-spaced snapshots across the day (00,03,06,...,21)
+    const slotHours = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
+    const nowHourStr = isToday ? hourlyTimes[repIdx].split('T')[1] : null;
+    const hourlyHtml = slotHours.map(hh => {
+      const idx = findIndexForDateHour(hourlyTimes, dateStr, hh);
+      if (idx === -1) return '';
+      const d2 = describeCode(weatherData.hourly.weather_code[idx]);
+      const t = weatherData.hourly.temperature_2m[idx];
+      const isNow = isToday && hh.split(':')[0] === (new Date(weatherData.current.time)).getHours().toString().padStart(2, '0');
+      const label = (parseInt(hh) % 12 === 0 ? 12 : parseInt(hh) % 12) + (parseInt(hh) < 12 ? 'AM' : 'PM');
+      return `<div class="hour-item ${isNow ? 'is-now' : ''}"><div class="time">${label}</div>${glyphFor(d2.kind, '#1C2541')}<div class="temp">${fmtTemp(t)}</div></div>`;
     }).join('');
 
-    const dailyHtml = days.map((d, i) => {
-      const desc2 = describeCode(d.code);
-      return `<div class="daily-row"><div class="day">${dayLabel(d.date, i)}</div>${glyphFor(desc2.kind, '#6B7A99')}<div class="cond">${desc2.text}</div><div class="range"><span>${fmtTemp(d.hi)}</span> <span class="lo">${fmtTemp(d.lo)}</span></div></div>`;
+    // This week at a glance — always the upcoming forecast window
+    const upcoming = [];
+    for (let i = 0; i < weatherData.daily.time.length; i++) {
+      if (weatherData.daily.time[i] >= todayStr && upcoming.length < 7) upcoming.push(i);
+    }
+    const dailyHtml = upcoming.map(i => {
+      const d = weatherData.daily.time[i];
+      const desc2 = describeCode(weatherData.daily.weather_code[i]);
+      const label = chipLabel(d, todayStr);
+      return `<div class="daily-row" data-date="${d}"><div class="day">${label}</div>${glyphFor(desc2.kind, '#6B7A99')}<div class="cond">${desc2.text}</div><div class="range"><span>${fmtTemp(weatherData.daily.temperature_2m_max[i])}</span> <span class="lo">${fmtTemp(weatherData.daily.temperature_2m_min[i])}</span></div></div>`;
     }).join('');
 
-    // Fishing conditions grid
-    const waterTempHtml = waterTemp !== null
+    const waterTempHtml = marineAvailable && waterTemp !== null
       ? `<div class="value">${fmtTemp(waterTemp)}</div>`
-      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">Not available here</div>`;
-    const waveHtml = waveHeight !== null
+      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">${marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
+    const waveHtml = marineAvailable && waveHeight !== null
       ? `<div class="value">${waveHeight.toFixed(1)}<span class="unit">m</span></div>`
-      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">Not available here</div>`;
+      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">${marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
 
     const condHtml = `
       <div class="cond-grid">
         <div class="cond-item">
           <div class="label">Pressure</div>
-          <div class="value">${Math.round(pressureNow)}<span class="unit">hPa</span> <span class="trend-arrow ${trend.cls}">${trend.arrow}</span></div>
-          <div class="note" style="margin-top:2px;">${trend.label} (3h)</div>
+          <div class="value">${pressureNow ? Math.round(pressureNow) : '--'}<span class="unit">hPa</span> <span class="trend-arrow ${trend.cls}">${trend.arrow}</span></div>
+          <div class="note" style="margin-top:2px;">${trend.label}</div>
         </div>
         <div class="cond-item">
           <div class="label">Wind</div>
-          <div class="value">${Math.round(current.wind_speed_10m)}<span class="unit">km/h</span></div>
+          <div class="value">${windAt !== null && windAt !== undefined ? Math.round(windAt) : '--'}<span class="unit">km/h</span></div>
         </div>
         <div class="cond-item">
           <div class="label">Water temp</div>
@@ -625,22 +613,10 @@
 
     const sunMoonHtml = `
       <div class="sunmoon-grid">
-        <div class="sunmoon-col">
-          ${sunGlyph('#E3A857')}
-          <div class="lines"><div class="t1">${clockLabel(sunrise)}</div><div class="t2">Sunrise</div></div>
-        </div>
-        <div class="sunmoon-col">
-          ${sunGlyph('#6B7A99')}
-          <div class="lines"><div class="t1">${clockLabel(sunset)}</div><div class="t2">Sunset</div></div>
-        </div>
-        <div class="sunmoon-col">
-          ${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541')}
-          <div class="lines"><div class="t1">${moonTimesToday.rise ? clockLabel(moonTimesToday.rise) : '--'}</div><div class="t2">Moonrise</div></div>
-        </div>
-        <div class="sunmoon-col">
-          ${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541')}
-          <div class="lines"><div class="t1">${moonTimesToday.set ? clockLabel(moonTimesToday.set) : '--'}</div><div class="t2">Moonset</div></div>
-        </div>
+        <div class="sunmoon-col">${sunGlyph('#E3A857')}<div class="lines"><div class="t1">${sunrise ? clockLabel(sunrise) : '--'}</div><div class="t2">Sunrise</div></div></div>
+        <div class="sunmoon-col">${sunGlyph('#6B7A99')}<div class="lines"><div class="t1">${sunset ? clockLabel(sunset) : '--'}</div><div class="t2">Sunset</div></div></div>
+        <div class="sunmoon-col">${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541')}<div class="lines"><div class="t1">${moonTimesToday.rise ? clockLabel(moonTimesToday.rise) : '--'}</div><div class="t2">Moonrise</div></div></div>
+        <div class="sunmoon-col">${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541')}<div class="lines"><div class="t1">${moonTimesToday.set ? clockLabel(moonTimesToday.set) : '--'}</div><div class="t2">Moonset</div></div></div>
       </div>
       <div class="moon-name">${moonPhaseName(illum.phase)} · ${Math.round(illum.fraction * 100)}% illuminated</div>
     `;
@@ -648,21 +624,28 @@
     // Timeline blocks
     const dayMinutes = 24 * 60;
     function blockStyle(center, halfWidthMin, cls) {
-      const centerMin = minutesOfDay(center) + (center.getDate() !== dayStart.getDate() ? (center < dayStart ? -dayMinutes : dayMinutes) : 0);
+      let centerMin = minutesOfDay(center);
+      const dayDiff = Math.round((new Date(center.getFullYear(), center.getMonth(), center.getDate()) - dayStart) / 86400000);
+      centerMin += dayDiff * dayMinutes;
       let left = centerMin - halfWidthMin;
       let width = halfWidthMin * 2;
-      left = Math.max(0, left);
-      width = Math.min(dayMinutes, left + width) - left;
-      if (width <= 0) return '';
-      const leftPct = (left / dayMinutes) * 100;
-      const widthPct = (width / dayMinutes) * 100;
-      return `<div class="tl-block ${cls}" style="left:${leftPct}%; width:${widthPct}%;"></div>`;
+      const clippedLeft = Math.max(0, left);
+      const clippedRight = Math.min(dayMinutes, left + width);
+      const finalWidth = clippedRight - clippedLeft;
+      if (finalWidth <= 0) return '';
+      return `<div class="tl-block ${cls}" style="left:${(clippedLeft / dayMinutes) * 100}%; width:${(finalWidth / dayMinutes) * 100}%;"></div>`;
     }
 
     let tlBlocks = '';
     solunar.majors.forEach(m => { tlBlocks += blockStyle(m.center, 60, 'tl-major'); });
     solunar.minors.forEach(m => { tlBlocks += blockStyle(m.center, 30, 'tl-minor'); });
-    const nowPct = (minutesOfDay(nowDate) / dayMinutes) * 100;
+
+    let nowMarker = '';
+    if (isToday) {
+      const nowDate = new Date(weatherData.current.time);
+      const nowPct = (minutesOfDay(nowDate) / dayMinutes) * 100;
+      nowMarker = `<div class="tl-now" style="left:${nowPct}%;"></div>`;
+    }
 
     const solunarListHtml = [
       ...solunar.majors.map(m => `<div><span class="kind">Major</span> — ${clockLabel(m.center)} (2h window)</div>`),
@@ -670,10 +653,7 @@
     ].join('');
 
     const solunarHtml = `
-      <div class="timeline-track">
-        ${tlBlocks}
-        <div class="tl-now" style="left:${nowPct}%;"></div>
-      </div>
+      <div class="timeline-track">${tlBlocks}${nowMarker}</div>
       <div class="tl-labels"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>12am</span></div>
       <div class="solunar-legend">
         <div class="legend-item"><span class="legend-dot" style="background:var(--teal);"></span>Major period</div>
@@ -682,14 +662,19 @@
       <div class="solunar-list">${solunarListHtml}</div>
     `;
 
+    const dateLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const heroTag = isToday ? 'Live now' : (dateStr < todayStr ? 'Midday (recorded)' : 'Midday forecast');
+
     contentEl.innerHTML = `
       <div class="hero" style="background:${colors.bg}">
         <div class="hero-glyph" style="color:${colors.accent}">${glyphFor(desc.kind, colors.accent)}</div>
-        <p class="hero-location">${name}</p>
-        <p class="hero-temp">${fmtTemp(current.temperature_2m)}</p>
+        <p class="hero-location">${lastCoords.name} · ${dateLabel}</p>
+        <p class="hero-date-tag">${heroTag}</p>
+        <p class="hero-temp">${fmtTemp(repTemp)}</p>
         <p class="hero-condition" style="color:${colors.accent}">${desc.text}</p>
         <div class="hero-meta">
-          <span>Feels like ${fmtTemp(current.apparent_temperature)}</span>
+          <span>High ${fmtTemp(hi)}</span>
+          <span>Low ${fmtTemp(lo)}</span>
         </div>
       </div>
 
@@ -704,16 +689,26 @@
       </div>
 
       <div class="panel">
-        <p class="panel-title">Solunar periods — today</p>
+        <p class="panel-title">Solunar periods</p>
         ${solunarHtml}
       </div>
 
-      <p class="section-label">Next hours</p>
+      <p class="section-label">Through the day</p>
       <div class="hourly-strip">${hourlyHtml}</div>
 
-      <p class="section-label">Next few days</p>
+      <p class="section-label">This week at a glance</p>
       <div class="daily-list">${dailyHtml}</div>
+      <p class="coverage-note">Weather covers roughly the past week through the next two. Sea temp and wave height cover a shorter window since ocean models forecast less far ahead. Moon and solunar times work for any date.</p>
     `;
+
+    document.querySelectorAll('.daily-row').forEach(row => {
+      row.addEventListener('click', () => {
+        selectedDateStr = row.dataset.date;
+        document.querySelectorAll('.day-chip').forEach(b => b.classList.toggle('selected', b.dataset.date === selectedDateStr));
+        renderForDate(selectedDateStr);
+        dayPickerWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   }
 </script>
 

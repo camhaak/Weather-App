@@ -168,6 +168,19 @@
   .compare-cell.date-cell { font-weight: 500; font-size: 12px; }
   .compare-cell .sub { font-size: 10px; color: var(--slate); }
 
+  /* Trend chart */
+  .trend-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; }
+  .trend-header .panel-title { margin: 0; }
+  .trend-toggle { display: flex; gap: 3px; background: #F0ECE0; border-radius: 20px; padding: 3px; flex: 0 0 auto; }
+  .trend-toggle button {
+    font-family: 'Work Sans', sans-serif; font-size: 12.5px; font-weight: 500; padding: 5px 11px;
+    border: none; border-radius: 16px; background: none; color: var(--slate); cursor: pointer;
+  }
+  .trend-toggle button.active { background: var(--navy); color: var(--cream); }
+  .trend-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .trend-dot { cursor: pointer; }
+  .trend-caption { font-size: 12.5px; color: var(--slate); margin: 10px 0 0; text-align: center; }
+
   .status { text-align: center; padding: 60px 20px; color: var(--slate); font-size: 15px; }
   .hidden { display: none !important; }
   .note { font-size: 12.5px; color: var(--slate); margin-top: 12px; }
@@ -215,6 +228,7 @@
   let marineData = null;
   let todayStr = null;
   let selectedDateStr = null;
+  let trendRange = '1'; // '1' | '3' | '7'
 
   // ---- Weather code -> description + glyph ----
   function describeCode(code) {
@@ -525,6 +539,177 @@
     return { isToday, repIdx, repTemp, desc, pressureNow, trend, windAt, waterTemp, waveHeight, marineAvailable, sunrise, sunset, hi, lo, illum, moonTimesToday, solunar, dayStart, dailyIdx };
   }
 
+  // ---- Temperature trend chart (1 day / 3 day / week) ----
+  function toDisplayTemp(c) {
+    if (c === null || c === undefined || isNaN(c)) return null;
+    return unit === 'celsius' ? c : (c * 9 / 5 + 32);
+  }
+
+  function trendWindowDates(span) {
+    const allDates = weatherData.daily.time;
+    const idx = Math.max(0, allDates.indexOf(selectedDateStr));
+    const before = Math.floor((span - 1) / 2);
+    const after = span - 1 - before;
+    let start = idx - before, end = idx + after;
+    if (start < 0) { end += -start; start = 0; }
+    if (end > allDates.length - 1) { start -= (end - (allDates.length - 1)); end = allDates.length - 1; }
+    start = Math.max(0, start);
+    end = Math.min(allDates.length - 1, end);
+    return allDates.slice(start, end + 1);
+  }
+
+  function trendCaption(range) {
+    if (range === '1') return 'Hourly temperature for the selected day.';
+    if (range === '3') return 'Hourly temperature across 3 days, centered on the selected day.';
+    return 'Daily high/low range across the week, centered on the selected day.';
+  }
+
+  function buildTrendSVG(range) {
+    const W = 400, H = 190;
+    const padL = 8, padR = 8, plotTop = 14, plotH = 108, axisY = plotTop + plotH + 22;
+    const plotW = W - padL - padR;
+    const xScale = (t, wStart, wEnd) => {
+      const span = wEnd - wStart;
+      return padL + (span > 0 ? (t - wStart) / span : 0.5) * plotW;
+    };
+
+    if (range === '7') {
+      const days = trendWindowDates(7);
+      const hi = days.map(d => toDisplayTemp(weatherData.daily.temperature_2m_max[weatherData.daily.time.indexOf(d)]));
+      const lo = days.map(d => toDisplayTemp(weatherData.daily.temperature_2m_min[weatherData.daily.time.indexOf(d)]));
+      const wStart = new Date(days[0] + 'T00:00:00').getTime();
+      const wEnd = new Date(days[days.length - 1] + 'T23:59:59').getTime();
+      const xs = days.map(d => xScale(new Date(d + 'T12:00:00').getTime(), wStart, wEnd));
+      const allVals = hi.concat(lo).filter(v => v !== null);
+      if (allVals.length === 0) return '<div class="status" style="padding:30px 0;">No data available.</div>';
+      let minV = Math.min(...allVals), maxV = Math.max(...allVals);
+      if (minV === maxV) { minV -= 1; maxV += 1; }
+      const pad = (maxV - minV) * 0.15;
+      minV -= pad; maxV += pad;
+      const yScale = v => plotTop + (1 - (v - minV) / (maxV - minV)) * plotH;
+
+      const hiLine = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${yScale(hi[i])}`).join(' ');
+      const loLine = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${yScale(lo[i])}`).join(' ');
+      const bandPts = xs.map((x, i) => `${x},${yScale(hi[i])}`).join(' ') + ' ' +
+        xs.slice().reverse().map((x, i) => `${x},${yScale(lo[xs.length - 1 - i])}`).join(' ');
+
+      const dots = xs.map((x, i) => {
+        const d = days[i];
+        const isSel = d === selectedDateStr;
+        const dIdx = weatherData.daily.time.indexOf(d);
+        return `
+          <circle cx="${x}" cy="${yScale(hi[i])}" r="${isSel ? 4 : 3}" fill="#E3A857" stroke="#fff" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: High ${fmtTemp(weatherData.daily.temperature_2m_max[dIdx])}</title></circle>
+          <circle cx="${x}" cy="${yScale(lo[i])}" r="${isSel ? 4 : 3}" fill="#4C9F94" stroke="#fff" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: Low ${fmtTemp(weatherData.daily.temperature_2m_min[dIdx])}</title></circle>
+          ${isSel ? `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#1C2541" stroke-width="1" stroke-dasharray="2,3" opacity="0.3"/>` : ''}
+        `;
+      }).join('');
+
+      const labels = xs.map((x, i) => {
+        const d = days[i], isToday = d === todayStr;
+        const label = isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+        return `<text x="${x}" y="${axisY}" text-anchor="middle" font-size="11" fill="${isToday ? '#4C9F94' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${isToday ? '600' : '400'}">${label}</text>`;
+      }).join('');
+
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="${bandPts}" fill="#4C9F94" opacity="0.12"/>
+        <path d="${hiLine}" fill="none" stroke="#E3A857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${loLine}" fill="none" stroke="#4C9F94" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}${labels}
+      </svg>`;
+    }
+
+    // 1-day / 3-day continuous hourly line
+    const span = range === '1' ? 1 : 3;
+    const days = trendWindowDates(span);
+    const wStart = new Date(days[0] + 'T00:00:00').getTime();
+    const wEnd = new Date(days[days.length - 1] + 'T23:59:59').getTime();
+    const pts = [];
+    weatherData.hourly.time.forEach((t, i) => {
+      const tm = new Date(t).getTime();
+      if (tm >= wStart && tm <= wEnd) pts.push({ t: tm, v: toDisplayTemp(weatherData.hourly.temperature_2m[i]) });
+    });
+    const vals = pts.map(p => p.v).filter(v => v !== null);
+    if (vals.length === 0) return '<div class="status" style="padding:30px 0;">No data available.</div>';
+    let minV = Math.min(...vals), maxV = Math.max(...vals);
+    if (minV === maxV) { minV -= 1; maxV += 1; }
+    const pad = (maxV - minV) * 0.2;
+    minV -= pad; maxV += pad;
+    const yScale = v => plotTop + (1 - (v - minV) / (maxV - minV)) * plotH;
+
+    const linePts = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.t, wStart, wEnd)} ${yScale(p.v)}`).join(' ');
+    const areaPts = `M ${xScale(pts[0].t, wStart, wEnd)} ${plotTop + plotH} ` +
+      pts.map(p => `L ${xScale(p.t, wStart, wEnd)} ${yScale(p.v)}`).join(' ') +
+      ` L ${xScale(pts[pts.length - 1].t, wStart, wEnd)} ${plotTop + plotH} Z`;
+
+    let nowMarker = '';
+    const now = new Date(weatherData.current.time).getTime();
+    if (now >= wStart && now <= wEnd) {
+      const x = xScale(now, wStart, wEnd);
+      nowMarker = `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#1C2541" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"/>`;
+    }
+
+    let ticks;
+    if (range === '1') {
+      ticks = [0, 6, 12, 18, 24].map(h => ({
+        x: xScale(Math.min(wStart + h * 3600000, wEnd), wStart, wEnd),
+        label: h === 0 || h === 24 ? '12am' : h === 12 ? '12pm' : (h < 12 ? h + 'am' : (h - 12) + 'pm'),
+        isToday: false
+      }));
+    } else {
+      ticks = days.map(d => {
+        const isToday = d === todayStr;
+        return {
+          x: xScale(new Date(d + 'T12:00:00').getTime(), wStart, wEnd),
+          label: isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }),
+          isToday
+        };
+      });
+    }
+    const tickLabels = ticks.map(tk => `<text x="${tk.x}" y="${axisY}" text-anchor="middle" font-size="11" fill="${tk.isToday ? '#4C9F94' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${tk.isToday ? '600' : '400'}">${tk.label}</text>`).join('');
+
+    const dayDividers = range === '3' ? days.slice(1).map(d => {
+      const x = xScale(new Date(d + 'T00:00:00').getTime(), wStart, wEnd);
+      return `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#DDD8CC" stroke-width="1"/>`;
+    }).join('') : '';
+
+    const maxPt = pts.reduce((a, b) => (b.v > a.v ? b : a));
+    const minPt = pts.reduce((a, b) => (b.v < a.v ? b : a));
+
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4C9F94" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#4C9F94" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${dayDividers}
+      <path d="${areaPts}" fill="url(#trendFill)"/>
+      <path d="${linePts}" fill="none" stroke="#1C2541" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${nowMarker}
+      <circle cx="${xScale(maxPt.t, wStart, wEnd)}" cy="${yScale(maxPt.v)}" r="3" fill="#E3A857"/>
+      <circle cx="${xScale(minPt.t, wStart, wEnd)}" cy="${yScale(minPt.v)}" r="3" fill="#6B7A99"/>
+      ${tickLabels}
+    </svg>`;
+  }
+
+  function renderTrendPanel() {
+    const svg = buildTrendSVG(trendRange);
+    return `
+      <div class="panel trend-panel">
+        <div class="trend-header">
+          <p class="panel-title">Temperature trend</p>
+          <div class="trend-toggle" id="trendToggle">
+            <button data-range="1" class="${trendRange === '1' ? 'active' : ''}">1 Day</button>
+            <button data-range="3" class="${trendRange === '3' ? 'active' : ''}">3 Day</button>
+            <button data-range="7" class="${trendRange === '7' ? 'active' : ''}">Week</button>
+          </div>
+        </div>
+        <div class="trend-chart">${svg}</div>
+        <p class="trend-caption">${trendCaption(trendRange)}</p>
+      </div>
+    `;
+  }
+
   function renderForDate(dateStr) {
     const m = computeDayMetrics(dateStr);
     if (!m) { contentEl.innerHTML = `<div class="status">No weather data available for this date.</div>`; return; }
@@ -683,6 +868,8 @@
         <div class="hero-meta"><span>High ${fmtTemp(m.hi)}</span><span>Low ${fmtTemp(m.lo)}</span></div>
       </div>
 
+      ${renderTrendPanel()}
+
       <p class="section-label">Compare days <span class="sub">scroll to see more →</span></p>
       ${compareHtml}
 
@@ -700,6 +887,16 @@
 
     document.getElementById('prevDayBtn').addEventListener('click', () => shiftDate(-1));
     document.getElementById('nextDayBtn').addEventListener('click', () => shiftDate(1));
+
+    document.querySelectorAll('#trendToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        trendRange = btn.dataset.range;
+        renderForDate(selectedDateStr);
+      });
+    });
+    document.querySelectorAll('.trend-dot').forEach(dot => {
+      dot.addEventListener('click', () => selectDate(dot.dataset.date, true));
+    });
 
     document.querySelectorAll('.daily-row').forEach(row => {
       row.addEventListener('click', () => selectDate(row.dataset.date, true));

@@ -218,6 +218,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
 <script>
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
   const cityInput = document.getElementById('cityInput');
   const searchBtn = document.getElementById('searchBtn');
   const locateBtn = document.getElementById('locateBtn');
@@ -249,6 +251,17 @@
 
   function updateForgetBtn() {
     forgetBtn.style.display = getSavedLocation() ? '' : 'none';
+  }
+
+  // Center an element within its own horizontally-scrolling container without
+  // touching the page's vertical scroll (unlike scrollIntoView, which can drag
+  // the whole page down to bring an off-screen ancestor into view).
+  function centerHorizontally(container, el, smooth) {
+    if (!container || !el) return;
+    const target = el.offsetLeft - (container.clientWidth - el.offsetWidth) / 2;
+    const left = Math.max(0, target);
+    if (smooth) container.scrollTo({ left, behavior: 'smooth' });
+    else container.scrollLeft = left;
   }
 
   forgetBtn.addEventListener('click', () => {
@@ -496,7 +509,7 @@
     renderForDate(dateStr);
     if (scrollChipIntoView) {
       const chip = document.querySelector(`.day-chip[data-date="${dateStr}"]`);
-      if (chip) chip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      centerHorizontally(document.getElementById('dayPicker'), chip, true);
     }
   }
 
@@ -944,9 +957,9 @@
       col.addEventListener('click', () => selectDate(col.dataset.date, true));
     });
 
-    // Keep the selected compare column in view
+    // Keep the selected compare column in view (horizontally only)
     const selCol = document.querySelector('.compare-col.selected');
-    if (selCol) selCol.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+    centerHorizontally(document.getElementById('compareScroll'), selCol, false);
   }
 
   // ---- Restore a saved location on load, if any ----

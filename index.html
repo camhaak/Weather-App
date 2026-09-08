@@ -36,6 +36,7 @@
   }
 
   .locate-row { padding: 10px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+  .locate-left { display: flex; align-items: center; gap: 14px; }
 
   .locate-link { font-size: 14px; color: var(--slate); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
 
@@ -199,7 +200,10 @@
   </div>
 
   <div class="locate-row">
-    <button class="locate-link" id="locateBtn">Use my location</button>
+    <div class="locate-left">
+      <button class="locate-link" id="locateBtn">Use my location</button>
+      <button class="locate-link" id="forgetBtn" style="display:none;">Forget saved spot</button>
+    </div>
     <button class="unit-toggle" id="unitToggle">°C</button>
   </div>
 
@@ -217,10 +221,44 @@
   const cityInput = document.getElementById('cityInput');
   const searchBtn = document.getElementById('searchBtn');
   const locateBtn = document.getElementById('locateBtn');
+  const forgetBtn = document.getElementById('forgetBtn');
   const unitToggle = document.getElementById('unitToggle');
   const resultsEl = document.getElementById('results');
   const contentEl = document.getElementById('content');
   const dayPickerWrap = document.getElementById('dayPickerWrap');
+
+  const SAVED_LOCATION_KEY = 'tideAndTime.savedLocation';
+
+  function getSavedLocation() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(SAVED_LOCATION_KEY));
+      if (parsed && typeof parsed.lat === 'number' && typeof parsed.lon === 'number') return parsed;
+    } catch (e) {}
+    return null;
+  }
+
+  function saveLocation(loc) {
+    try { localStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(loc)); } catch (e) {}
+    updateForgetBtn();
+  }
+
+  function clearSavedLocation() {
+    try { localStorage.removeItem(SAVED_LOCATION_KEY); } catch (e) {}
+    updateForgetBtn();
+  }
+
+  function updateForgetBtn() {
+    forgetBtn.style.display = getSavedLocation() ? '' : 'none';
+  }
+
+  forgetBtn.addEventListener('click', () => {
+    clearSavedLocation();
+    lastCoords = null;
+    weatherData = null;
+    marineData = null;
+    cityInput.value = '';
+    showStatus('Search a spot or use your location to see fishing conditions — past week through the next two.');
+  });
 
   let unit = 'celsius';
   let lastCoords = null;
@@ -432,6 +470,7 @@
       if (marineRes && marineRes.ok) { try { marineData = await marineRes.json(); } catch (e) { marineData = null; } }
       todayStr = weatherData.current.time.split('T')[0];
       selectedDateStr = todayStr;
+      saveLocation({ lat, lon, name });
       buildDayPicker();
       renderForDate(selectedDateStr);
     } catch (err) {
@@ -908,6 +947,14 @@
     // Keep the selected compare column in view
     const selCol = document.querySelector('.compare-col.selected');
     if (selCol) selCol.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+  }
+
+  // ---- Restore a saved location on load, if any ----
+  updateForgetBtn();
+  const savedLocation = getSavedLocation();
+  if (savedLocation) {
+    cityInput.value = savedLocation.name || '';
+    loadLocation(savedLocation.lat, savedLocation.lon, savedLocation.name || 'Saved location');
   }
 </script>
 

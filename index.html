@@ -898,9 +898,12 @@
     const compact = range === '7';
     const plotTop = 16, plotH = 116;
     const plotBottom = plotTop + plotH;
-    const sunRowY = plotBottom + 16;
-    const moonRowY = plotBottom + 32;
-    const axisY = compact ? plotBottom + 22 : plotBottom + 50;
+    // Each label row needs room for its tick (rowY-9 to rowY-4) plus its text baseline (rowY+7,
+    // with the glyphs themselves reaching a couple px past that) — a 22px step keeps the next
+    // row's tick clear of the previous row's text instead of the two nearly touching.
+    const sunRowY = plotBottom + 18;
+    const moonRowY = sunRowY + 22;
+    const axisY = compact ? plotBottom + 22 : moonRowY + 22;
     const H = axisY + 14;
     const zeroY = plotTop + plotH / 2;
     const altToY = deg => plotTop + (1 - (deg + 90) / 180) * plotH;

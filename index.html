@@ -170,6 +170,7 @@
   .compare-cell .sub { font-size: 10px; color: var(--slate); }
 
   /* Trend chart */
+  .trend-panel { position: relative; }
   .trend-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; }
   .trend-header .panel-title { margin: 0; }
   .trend-toggle { display: flex; gap: 3px; background: #F0ECE0; border-radius: 20px; padding: 3px; flex: 0 0 auto; }
@@ -183,9 +184,32 @@
   .trend-caption { font-size: 12.5px; color: var(--slate); margin: 10px 0 0; text-align: center; }
 
   /* Sun, moon & bite chart */
-  .sunmoon-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; margin-bottom: 14px; }
+  .sunmoon-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; margin-top: 14px; }
   .sunmoon-chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; cursor: crosshair; }
   .sunmoon-chart-wrap svg { display: block; }
+
+  .info-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 17px; height: 17px; margin-left: 6px; border-radius: 50%; border: none;
+    background: #EEEAE0; color: var(--slate); font-size: 11px; font-weight: 700;
+    font-style: italic; font-family: Georgia, serif; cursor: pointer; vertical-align: middle; padding: 0;
+  }
+  .info-btn:hover { background: #E0DACB; }
+
+  .sunmoon-info-popup {
+    position: absolute; top: 46px; right: 20px; left: 20px; z-index: 20;
+    background: #fff; border: 1px solid #EEEAE0; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(28,37,65,0.15);
+    padding: 16px 18px; font-size: 12.5px; color: var(--navy); line-height: 1.55;
+  }
+  .sunmoon-info-popup[hidden] { display: none; }
+  .sunmoon-info-popup p { margin: 0 0 8px; }
+  .sunmoon-info-popup p:last-child { margin-bottom: 0; }
+  .info-popup-close {
+    position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%;
+    border: none; background: none; color: var(--slate); font-size: 16px; line-height: 1; cursor: pointer;
+  }
+  .info-popup-close:hover { background: #F0ECE0; }
 
   .sunmoon-cursor-info { margin-bottom: 14px; padding: 10px 14px; background: #F9F7F2; border-radius: 12px; border: 1px solid #EEEAE0; font-size: 12.5px; color: var(--navy); }
   .cursor-time { font-weight: 600; margin-bottom: 6px; }
@@ -291,6 +315,18 @@
 
   // Delegated so these keep working across every re-render of the sun/moon chart, not just the first.
   contentEl.addEventListener('click', (e) => {
+    const infoPopup = document.getElementById('sunMoonInfoPopup');
+    if (e.target.closest('#sunMoonInfoBtn')) {
+      if (infoPopup) infoPopup.hidden = !infoPopup.hidden;
+      return;
+    }
+    if (e.target.closest('#sunMoonInfoCloseBtn')) {
+      if (infoPopup) infoPopup.hidden = true;
+      return;
+    }
+    if (infoPopup && !infoPopup.hidden && !e.target.closest('#sunMoonInfoPopup')) {
+      infoPopup.hidden = true;
+    }
     if (e.target.closest('#sunMoonChartWrap')) handleSunMoonChartClick(e);
   });
   contentEl.addEventListener('pointerdown', handleSunMoonPointerDown);
@@ -801,9 +837,13 @@
   // so scrolling keeps going as far as the underlying data allows in either direction.
   function sunMoonPPH(range) { return range === '1' ? 16 : range === '3' ? 7 : 3.2; }
 
-  function sunMoonCaption(range) {
+  function sunMoonInfoPopupHtml(range) {
     const zoomNote = range === '1' ? 'Zoomed in for hourly detail.' : range === '3' ? 'Zoomed to a multi-day view.' : 'Zoomed out for a broad overview.';
-    return `${zoomNote} Scroll to explore the full forecast. Tap the chart to move the cursor, or press and drag the bar to scrub through time — it snaps onto major bites, minor bites, and sunrise/sunset, turning teal, slate-blue, or gold to show which, and the key above updates as you go. Taller teal bands are major bite windows, shorter grey-blue bands are minor ones — how vivid a band is reflects its estimated effectiveness (moon phase, distance from Earth & pressure trend), which shifts day to day.`;
+    return `
+      <p><strong>${zoomNote}</strong> Scroll to explore the full forecast at any zoom level.</p>
+      <p>Tap the chart to move the cursor, or press and drag the bar to scrub through time. It snaps onto major bites (teal), minor bites (slate-blue), and sunrise/sunset (gold) — the key above updates as you go.</p>
+      <p>Taller teal bands are major bite windows, shorter grey-blue bands are minor ones. How vivid a band is reflects its estimated effectiveness (moon phase, distance from Earth &amp; pressure trend), which shifts day to day.</p>
+    `;
   }
 
   // ---- Estimated bite-window "effectiveness" ----
@@ -1051,22 +1091,25 @@
     return `
       <div class="panel trend-panel">
         <div class="trend-header">
-          <p class="panel-title">Sun, moon &amp; bite times</p>
+          <p class="panel-title">Sun, moon &amp; bite times<button type="button" class="info-btn" id="sunMoonInfoBtn" aria-label="About this chart">i</button></p>
           <div class="trend-toggle" id="sunMoonToggle">
             <button data-range="1" class="${sunMoonRange === '1' ? 'active' : ''}">1 Day</button>
             <button data-range="3" class="${sunMoonRange === '3' ? 'active' : ''}">3 Day</button>
             <button data-range="7" class="${sunMoonRange === '7' ? 'active' : ''}">Week</button>
           </div>
         </div>
+        <div class="sunmoon-info-popup" id="sunMoonInfoPopup" hidden>
+          <button type="button" class="info-popup-close" id="sunMoonInfoCloseBtn" aria-label="Close">&times;</button>
+          ${sunMoonInfoPopupHtml(sunMoonRange)}
+        </div>
+        <div class="sunmoon-cursor-info" id="sunMoonCursorInfo">${sunMoonCursorInfoHtml(cursorTime)}</div>
+        <div class="sunmoon-chart-wrap" id="sunMoonChartWrap">${svg}</div>
         <div class="sunmoon-legend">
           <span class="legend-item"><span class="legend-dot" style="background:#E3A857;"></span>Sun altitude</span>
           <span class="legend-item"><span class="legend-dot" style="background:#6B7A99;"></span>Moon altitude</span>
           <span class="legend-item"><span class="legend-dot" style="background:#4C9F94;"></span>Major bite (2h)</span>
           <span class="legend-item"><span class="legend-dot" style="background:#8C9BB5;"></span>Minor bite (1h)</span>
         </div>
-        <div class="sunmoon-cursor-info" id="sunMoonCursorInfo">${sunMoonCursorInfoHtml(cursorTime)}</div>
-        <div class="sunmoon-chart-wrap" id="sunMoonChartWrap">${svg}</div>
-        <p class="trend-caption">${sunMoonCaption(sunMoonRange)}</p>
       </div>
     `;
   }

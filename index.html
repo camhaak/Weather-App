@@ -1016,6 +1016,15 @@
     document.querySelectorAll('.day-chip').forEach(btn => {
       btn.addEventListener('click', () => selectDate(btn.dataset.date, true));
     });
+    // buildDayPicker only runs once per location load, so the strip otherwise sits scrolled to
+    // its start (the furthest-back past day) instead of showing today. Align today to the left
+    // edge (rather than centering) so the visible chips lead with today and run into the future.
+    const picker = document.getElementById('dayPicker');
+    const todayChip = document.querySelector(`.day-chip[data-date="${todayStr}"]`);
+    if (picker && todayChip) {
+      const pickerPadLeft = parseFloat(getComputedStyle(picker).paddingLeft) || 0;
+      picker.scrollLeft = Math.max(0, todayChip.offsetLeft - pickerPadLeft);
+    }
   }
 
   function selectDate(dateStr, scrollChipIntoView) {

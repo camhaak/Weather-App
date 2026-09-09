@@ -1432,13 +1432,8 @@
     if (e.target.id === 'trendCursorHandle') e.target.style.cursor = 'grab';
   }
 
-  function trendInfoPopupHtml(range) {
-    const zoomNote = range === '1' ? 'Zoomed in for hourly detail.' : range === '3' ? 'Zoomed to a multi-day view.' : 'Zoomed out for a broad overview.';
-    return `
-      <p><strong>${zoomNote}</strong> Scroll to explore the full forecast at any zoom level — the y-axis on the left shows temperature, the ticks below show time of day and date.</p>
-      <p>Tap the chart to move the cursor, or press and drag the bar to scrub through time. The dot rides the line and snaps to the nearest hourly reading, with the exact time, temperature, and conditions shown in the key above.</p>
-      <p>The cursor starts on the current time, stays put when you switch zoom levels, and follows along whenever you change date elsewhere on the page. Use the Today button to jump straight back.</p>
-    `;
+  function trendInfoPopupHtml() {
+    return `<p>Scroll to see the full forecast. Tap or drag the chart to move the cursor and read the time and temperature above — use the Today button to jump back to now.</p>`;
   }
 
   function renderTrendPanel() {
@@ -1456,7 +1451,7 @@
         </div>
         <div class="chart-info-popup" id="trendInfoPopup" hidden>
           <button type="button" class="info-popup-close" id="trendInfoCloseBtn" aria-label="Close">&times;</button>
-          ${trendInfoPopupHtml(trendRange)}
+          ${trendInfoPopupHtml()}
         </div>
         <div class="chart-cursor-info" id="trendCursorInfo">${trendCursorInfoHtml(cursorTime)}</div>
         <div class="trend-chart-container">

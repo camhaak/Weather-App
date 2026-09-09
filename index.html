@@ -295,9 +295,15 @@
     border: none; border-radius: 16px; background: none; color: var(--text-muted); cursor: pointer;
   }
   .trend-toggle button.active { background: var(--accent-strong); color: var(--cream); }
-  .trend-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
-  .trend-dot { cursor: pointer; }
-  .trend-caption { font-size: 12.5px; color: var(--text-muted); margin: 10px 0 0; text-align: center; }
+
+  .trend-chart-container { position: relative; display: flex; }
+  .trend-chart-yaxis { position: relative; flex: 0 0 30px; width: 30px; }
+  .trend-chart-yaxis .y-tick {
+    position: absolute; left: 0; right: 4px; transform: translateY(-50%);
+    font-size: 10.5px; color: var(--text-muted); text-align: right; white-space: nowrap;
+  }
+  .trend-chart-wrap { flex: 1 1 auto; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; cursor: crosshair; }
+  .trend-chart-wrap svg { display: block; }
 
   /* Sun, moon & bite chart */
   .sunmoon-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; margin-top: 14px; }
@@ -305,13 +311,13 @@
   .sunmoon-chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; cursor: crosshair; }
   .sunmoon-chart-wrap svg { display: block; }
 
-  .sunmoon-today-btn {
+  .chart-today-btn {
     position: absolute; bottom: 8px; right: 8px; z-index: 5;
     font-family: 'Work Sans', sans-serif; font-size: 11.5px; font-weight: 500; color: var(--text);
     background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 5px 11px;
     cursor: pointer; box-shadow: 0 2px 6px rgba(28,37,65,0.15);
   }
-  .sunmoon-today-btn:hover { background: var(--surface-alt); }
+  .chart-today-btn:hover { background: var(--surface-alt); }
 
   .info-btn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -336,7 +342,7 @@
   }
   .info-popup-close:hover { background: var(--surface-alt2); }
 
-  .sunmoon-cursor-info { margin-bottom: 14px; padding: 10px 14px; background: var(--surface-alt); border-radius: 12px; border: 1px solid var(--border-faint); font-size: 12.5px; color: var(--text); }
+  .chart-cursor-info { margin-bottom: 14px; padding: 10px 14px; background: var(--surface-alt); border-radius: 12px; border: 1px solid var(--border-faint); font-size: 12.5px; color: var(--text); }
   .cursor-time { font-weight: 600; margin-bottom: 6px; }
   .cursor-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
   .cursor-icon { display: flex; flex: 0 0 auto; width: 26px; height: 26px; }
@@ -733,12 +739,18 @@
       infoPopup.hidden = true;
     }
     if (e.target.closest('#sunMoonTodayBtn')) { jumpSunMoonToToday(); return; }
-    if (e.target.closest('#sunMoonChartWrap')) handleSunMoonChartClick(e);
+    if (e.target.closest('#sunMoonChartWrap')) { handleSunMoonChartClick(e); return; }
+    if (e.target.closest('#trendTodayBtn')) { jumpTrendToToday(); return; }
+    if (e.target.closest('#trendChartWrap')) handleTrendChartClick(e);
   });
   contentEl.addEventListener('pointerdown', handleSunMoonPointerDown);
   contentEl.addEventListener('pointermove', handleSunMoonPointerMove);
   contentEl.addEventListener('pointerup', handleSunMoonPointerUp);
   contentEl.addEventListener('pointercancel', handleSunMoonPointerUp);
+  contentEl.addEventListener('pointerdown', handleTrendPointerDown);
+  contentEl.addEventListener('pointermove', handleTrendPointerMove);
+  contentEl.addEventListener('pointerup', handleTrendPointerUp);
+  contentEl.addEventListener('pointercancel', handleTrendPointerUp);
 
   // Generic "was an explicit choice saved?" reader for enum-style unit preferences.
   function getSavedPref(key, validValues, fallback) {
@@ -772,6 +784,13 @@
   let sunMoonAutoScrollDir = 0; // -1 (left), 0 (none), 1 (right)
   let sunMoonAutoScrollSpeed = 0;
   let sunMoonAutoScrollRAF = null;
+  let trendCursorTime = null; // Date the user clicked/dragged on the temperature chart, or null to track "now"
+  let trendChartMeta = null; // { wStartMs, wEndMs, pph, minV, maxV, plotTop, plotH, pts } from the most recent chart build
+  let draggingTrendCursor = false;
+  let trendLastClientX = 0;
+  let trendAutoScrollDir = 0;
+  let trendAutoScrollSpeed = 0;
+  let trendAutoScrollRAF = null;
 
   // ---- Weather code -> description + glyph ----
   function describeCode(code) {
@@ -998,6 +1017,7 @@
       todayStr = weatherData.current.time.split('T')[0];
       selectedDateStr = todayStr;
       sunMoonCursorTime = new Date(weatherData.current.time); // reset to "now" for whatever spot just loaded
+      trendCursorTime = new Date(weatherData.current.time);
       saveLocation({ lat, lon, name });
       buildDayPicker();
       renderForDate(selectedDateStr);
@@ -1027,15 +1047,21 @@
     }
   }
 
+  // Keeps a cursor's time-of-day but moves its date, so jumping to a new date via the picker
+  // lands the chart cursors on "the same time on the new day" instead of an arbitrary moment.
+  function withDate(baseTime, dateStr) {
+    const hh = String(baseTime.getHours()).padStart(2, '0');
+    const mi = String(baseTime.getMinutes()).padStart(2, '0');
+    const ss = String(baseTime.getSeconds()).padStart(2, '0');
+    return new Date(`${dateStr}T${hh}:${mi}:${ss}`);
+  }
+
   function selectDate(dateStr, scrollChipIntoView) {
     selectedDateStr = dateStr;
-    // Move the sun-moon cursor to the newly selected date, keeping its time-of-day, so the
-    // chart follows the date picker instead of staying parked on whatever day it was on before.
-    const baseCursor = sunMoonCursorTime || new Date(weatherData.current.time);
-    const hh = String(baseCursor.getHours()).padStart(2, '0');
-    const mi = String(baseCursor.getMinutes()).padStart(2, '0');
-    const ss = String(baseCursor.getSeconds()).padStart(2, '0');
-    sunMoonCursorTime = new Date(`${dateStr}T${hh}:${mi}:${ss}`);
+    // Move both charts' cursors to the newly selected date, keeping their time-of-day, so they
+    // follow the date picker instead of staying parked on whatever day they were on before.
+    sunMoonCursorTime = withDate(sunMoonCursorTime || new Date(weatherData.current.time), dateStr);
+    trendCursorTime = withDate(trendCursorTime || new Date(weatherData.current.time), dateStr);
     document.querySelectorAll('.day-chip').forEach(b => b.classList.toggle('selected', b.dataset.date === dateStr));
     renderForDate(dateStr, true);
     if (scrollChipIntoView) {
@@ -1128,23 +1154,21 @@
     return unit === 'celsius' ? c : (c * 9 / 5 + 32);
   }
 
-  function trendWindowDates(span) {
-    const allDates = weatherData.daily.time;
-    const idx = Math.max(0, allDates.indexOf(selectedDateStr));
-    const before = Math.floor((span - 1) / 2);
-    const after = span - 1 - before;
-    let start = idx - before, end = idx + after;
-    if (start < 0) { end += -start; start = 0; }
-    if (end > allDates.length - 1) { start -= (end - (allDates.length - 1)); end = allDates.length - 1; }
-    start = Math.max(0, start);
-    end = Math.min(allDates.length - 1, end);
-    return allDates.slice(start, end + 1);
-  }
+  function trendPPH(range) { return range === '1' ? 16 : range === '3' ? 7 : 3.2; }
 
-  function trendCaption(range) {
-    if (range === '1') return 'Hourly temperature for the selected day.';
-    if (range === '3') return 'Hourly temperature across 3 days, centered on the selected day.';
-    return 'Daily high/low range across the week, centered on the selected day.';
+  // Rounds a [minV, maxV] span to a "nice" step (1/2/5/10 × a power of ten) so the y-axis reads
+  // like a real chart's gridlines instead of landing on arbitrary decimal temperatures.
+  function niceTempTicks(minV, maxV) {
+    const span = Math.max(1e-6, maxV - minV);
+    const rawStep = span / 4;
+    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const norm = rawStep / mag;
+    const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+    const niceMin = Math.floor(minV / step) * step;
+    const niceMax = Math.ceil(maxV / step) * step;
+    const ticks = [];
+    for (let v = niceMin; v <= niceMax + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100);
+    return { ticks, min: niceMin, max: niceMax };
   }
 
   // Chart SVGs are generated as raw hex strings in JS, so they can't pick up CSS variables —
@@ -1157,149 +1181,253 @@
       : { text: '#1C2541', divider: '#DDD8CC', faintDivider: '#EEEAE0', dotStroke: '#fff', horizon: '#C9C2AE' };
   }
 
+  // Continuous hourly line across the full fetched date range, at a zoom-dependent pixel-per-hour
+  // density — the same "infinitely scrollable" structure as buildSunMoonChart, so the two charts
+  // behave consistently (persisted cursor, Today button, day-sync, etc. all reuse this shape).
   function buildTrendSVG(range) {
     const CT = chartTheme();
-    const W = 400, H = 190;
-    const padL = 8, padR = 8, plotTop = 14, plotH = 108, axisY = plotTop + plotH + 22;
-    const plotW = W - padL - padR;
-    const xScale = (t, wStart, wEnd) => {
-      const span = wEnd - wStart;
-      return padL + (span > 0 ? (t - wStart) / span : 0.5) * plotW;
-    };
+    const days = weatherData.daily.time;
+    const wStart = new Date(days[0] + 'T00:00:00');
+    const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
+    const pph = trendPPH(range);
+    const totalHours = (wEnd - wStart) / 3600000;
+    const W = Math.max(360, Math.round(totalHours * pph));
+    const plotTop = 16, plotH = 130;
+    const axisY = plotTop + plotH + 22;
+    const H = axisY + 14;
+    const xForTime = t => ((t - wStart.getTime()) / 3600000) * pph;
 
-    if (range === '7') {
-      const days = trendWindowDates(7);
-      const hi = days.map(d => toDisplayTemp(weatherData.daily.temperature_2m_max[weatherData.daily.time.indexOf(d)]));
-      const lo = days.map(d => toDisplayTemp(weatherData.daily.temperature_2m_min[weatherData.daily.time.indexOf(d)]));
-      const wStart = new Date(days[0] + 'T00:00:00').getTime();
-      const wEnd = new Date(days[days.length - 1] + 'T23:59:59').getTime();
-      const xs = days.map(d => xScale(new Date(d + 'T12:00:00').getTime(), wStart, wEnd));
-      const allVals = hi.concat(lo).filter(v => v !== null);
-      if (allVals.length === 0) return '<div class="status" style="padding:30px 0;">No data available.</div>';
-      let minV = Math.min(...allVals), maxV = Math.max(...allVals);
-      if (minV === maxV) { minV -= 1; maxV += 1; }
-      const pad = (maxV - minV) * 0.15;
-      minV -= pad; maxV += pad;
-      const yScale = v => plotTop + (1 - (v - minV) / (maxV - minV)) * plotH;
-
-      const hiLine = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${yScale(hi[i])}`).join(' ');
-      const loLine = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${yScale(lo[i])}`).join(' ');
-      const bandPts = xs.map((x, i) => `${x},${yScale(hi[i])}`).join(' ') + ' ' +
-        xs.slice().reverse().map((x, i) => `${x},${yScale(lo[xs.length - 1 - i])}`).join(' ');
-
-      const dots = xs.map((x, i) => {
-        const d = days[i];
-        const isSel = d === selectedDateStr;
-        const dIdx = weatherData.daily.time.indexOf(d);
-        return `
-          <circle cx="${x}" cy="${yScale(hi[i])}" r="${isSel ? 4 : 3}" fill="#E3A857" stroke="${CT.dotStroke}" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: High ${fmtTemp(weatherData.daily.temperature_2m_max[dIdx])}</title></circle>
-          <circle cx="${x}" cy="${yScale(lo[i])}" r="${isSel ? 4 : 3}" fill="#4C9F94" stroke="${CT.dotStroke}" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: Low ${fmtTemp(weatherData.daily.temperature_2m_min[dIdx])}</title></circle>
-          ${isSel ? `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.text}" stroke-width="1" stroke-dasharray="2,3" opacity="0.3"/>` : ''}
-        `;
-      }).join('');
-
-      const labels = xs.map((x, i) => {
-        const d = days[i], isToday = d === todayStr;
-        const label = isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
-        return `<text x="${x}" y="${axisY}" text-anchor="middle" font-size="11" fill="${isToday ? '#4C9F94' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${isToday ? '600' : '400'}">${label}</text>`;
-      }).join('');
-
-      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="${bandPts}" fill="#4C9F94" opacity="0.12"/>
-        <path d="${hiLine}" fill="none" stroke="#E3A857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="${loLine}" fill="none" stroke="#4C9F94" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        ${dots}${labels}
-      </svg>`;
-    }
-
-    // 1-day / 3-day continuous hourly line
-    const span = range === '1' ? 1 : 3;
-    const days = trendWindowDates(span);
-    const wStart = new Date(days[0] + 'T00:00:00').getTime();
-    const wEnd = new Date(days[days.length - 1] + 'T23:59:59').getTime();
     const pts = [];
     weatherData.hourly.time.forEach((t, i) => {
       const tm = new Date(t).getTime();
-      if (tm >= wStart && tm <= wEnd) pts.push({ t: tm, v: toDisplayTemp(weatherData.hourly.temperature_2m[i]) });
+      if (tm >= wStart.getTime() && tm <= wEnd.getTime()) pts.push({ t: tm, v: toDisplayTemp(weatherData.hourly.temperature_2m[i]) });
     });
     const vals = pts.map(p => p.v).filter(v => v !== null);
-    if (vals.length === 0) return '<div class="status" style="padding:30px 0;">No data available.</div>';
-    let minV = Math.min(...vals), maxV = Math.max(...vals);
-    if (minV === maxV) { minV -= 1; maxV += 1; }
-    const pad = (maxV - minV) * 0.2;
-    minV -= pad; maxV += pad;
+    if (vals.length === 0) { trendChartMeta = null; return '<div class="status" style="padding:30px 0;">No data available.</div>'; }
+    const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
+    const { ticks: yTicks, min: minV, max: maxV } = niceTempTicks(rawMin, rawMax === rawMin ? rawMax + 1 : rawMax);
     const yScale = v => plotTop + (1 - (v - minV) / (maxV - minV)) * plotH;
 
-    const linePts = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.t, wStart, wEnd)} ${yScale(p.v)}`).join(' ');
-    const areaPts = `M ${xScale(pts[0].t, wStart, wEnd)} ${plotTop + plotH} ` +
-      pts.map(p => `L ${xScale(p.t, wStart, wEnd)} ${yScale(p.v)}`).join(' ') +
-      ` L ${xScale(pts[pts.length - 1].t, wStart, wEnd)} ${plotTop + plotH} Z`;
+    const linePts = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xForTime(p.t).toFixed(1)} ${yScale(p.v).toFixed(1)}`).join(' ');
+    const areaPts = `M ${xForTime(pts[0].t).toFixed(1)} ${plotTop + plotH} ` +
+      pts.map(p => `L ${xForTime(p.t).toFixed(1)} ${yScale(p.v).toFixed(1)}`).join(' ') +
+      ` L ${xForTime(pts[pts.length - 1].t).toFixed(1)} ${plotTop + plotH} Z`;
 
-    let nowMarker = '';
-    const now = new Date(weatherData.current.time).getTime();
-    if (now >= wStart && now <= wEnd) {
-      const x = xScale(now, wStart, wEnd);
-      nowMarker = `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.text}" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"/>`;
+    const gridLines = yTicks.map(tv => `<line x1="0" x2="${W}" y1="${yScale(tv).toFixed(1)}" y2="${yScale(tv).toFixed(1)}" stroke="${CT.faintDivider}" stroke-width="1"/>`).join('');
+
+    let dividers = '', dayLabels = '';
+    days.forEach((d, i) => {
+      const dayStartX = xForTime(new Date(d + 'T00:00:00').getTime());
+      if (i > 0) dividers += `<line x1="${dayStartX}" x2="${dayStartX}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.divider}" stroke-width="1"/>`;
+      const isToday = d === todayStr;
+      const [, mo, da] = d.split('-');
+      const weekday = isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+      const label = `${weekday} ${da}/${mo}`;
+      dayLabels += `<text x="${dayStartX + 4}" y="${axisY}" text-anchor="start" font-size="11" fill="${isToday ? '#4C9F94' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${isToday ? '600' : '400'}">${label}</text>`;
+    });
+
+    // Interactive crosshair cursor: snaps to the nearest actual hourly sample (rather than
+    // interpolating) so the dot always sits exactly on the plotted line and the legend below
+    // always describes a real data point.
+    const cursorTime = trendCursorTime || new Date(weatherData.current.time);
+    let cursorHtml = '';
+    const cursorIdx = Math.round((cursorTime.getTime() - wStart.getTime()) / 3600000);
+    const cursorPt = pts[Math.max(0, Math.min(pts.length - 1, cursorIdx))];
+    if (cursorPt) {
+      const cx = xForTime(cursorPt.t);
+      const cy = yScale(cursorPt.v);
+      cursorHtml = `
+        <line id="trendCursorX" x1="${cx}" x2="${cx}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="${CT.text}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.4"/>
+        <line id="trendCursorY" x1="0" x2="${W}" y1="${cy}" y2="${cy}" stroke="${CT.text}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.4"/>
+        <circle id="trendCursorDot" cx="${cx}" cy="${cy}" r="4.5" fill="#E3A857" stroke="${CT.dotStroke}" stroke-width="1.5"/>
+        <rect id="trendCursorHandle" x="${cx - 12}" y="${plotTop - 14}" width="24" height="${plotH + 28}" fill="transparent" style="cursor:grab; touch-action:none;"/>
+      `;
     }
 
-    let ticks;
-    if (range === '1') {
-      ticks = [0, 6, 12, 18, 24].map(h => ({
-        x: xScale(Math.min(wStart + h * 3600000, wEnd), wStart, wEnd),
-        label: h === 0 || h === 24 ? '12am' : h === 12 ? '12pm' : (h < 12 ? h + 'am' : (h - 12) + 'pm'),
-        isToday: false
-      }));
-    } else {
-      ticks = days.map(d => {
-        const isToday = d === todayStr;
-        return {
-          x: xScale(new Date(d + 'T12:00:00').getTime(), wStart, wEnd),
-          label: isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }),
-          isToday
-        };
-      });
-    }
-    const tickLabels = ticks.map(tk => `<text x="${tk.x}" y="${axisY}" text-anchor="middle" font-size="11" fill="${tk.isToday ? '#4C9F94' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${tk.isToday ? '600' : '400'}">${tk.label}</text>`).join('');
-
-    const dayDividers = range === '3' ? days.slice(1).map(d => {
-      const x = xScale(new Date(d + 'T00:00:00').getTime(), wStart, wEnd);
-      return `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.divider}" stroke-width="1"/>`;
-    }).join('') : '';
-
-    const maxPt = pts.reduce((a, b) => (b.v > a.v ? b : a));
-    const minPt = pts.reduce((a, b) => (b.v < a.v ? b : a));
-
-    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#4C9F94" stop-opacity="0.28"/>
           <stop offset="100%" stop-color="#4C9F94" stop-opacity="0"/>
         </linearGradient>
       </defs>
-      ${dayDividers}
+      ${gridLines}${dividers}
       <path d="${areaPts}" fill="url(#trendFill)"/>
       <path d="${linePts}" fill="none" stroke="${CT.text}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      ${nowMarker}
-      <circle cx="${xScale(maxPt.t, wStart, wEnd)}" cy="${yScale(maxPt.v)}" r="3" fill="#E3A857"/>
-      <circle cx="${xScale(minPt.t, wStart, wEnd)}" cy="${yScale(minPt.v)}" r="3" fill="#6B7A99"/>
-      ${tickLabels}
+      ${cursorHtml}${dayLabels}
     </svg>`;
+
+    trendChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, minV, maxV, plotTop, plotH, pts };
+    return svg;
+  }
+
+  function trendYAxisLabelsHtml() {
+    if (!trendChartMeta) return '';
+    const { minV, maxV, plotTop, plotH } = trendChartMeta;
+    const { ticks } = niceTempTicks(minV, maxV);
+    return ticks.map(tv => {
+      const y = plotTop + (1 - (tv - minV) / (maxV - minV)) * plotH;
+      return `<span class="y-tick" style="top:${y}px;">${Math.round(tv)}°</span>`;
+    }).join('');
+  }
+
+  function trendCursorInfoHtml(time) {
+    const idx = findIndexForDateHour(weatherData.hourly.time, fmtDateStr(time), String(time.getHours()).padStart(2, '0') + ':00');
+    const code = idx !== -1 ? weatherData.hourly.weather_code[idx] : null;
+    const temp = idx !== -1 ? weatherData.hourly.temperature_2m[idx] : null;
+    const d2 = code !== null ? describeCode(code) : null;
+    return `
+      <div class="cursor-time">${chipLabel(fmtDateStr(time), todayStr)} · ${clockLabel(time)}</div>
+      <div class="cursor-row">${d2 ? `<span class="cursor-icon">${glyphFor(d2.kind, chartTheme().text)}</span>` : ''}${fmtTemp(temp)}${d2 ? ` · ${d2.text}` : ''}</div>
+    `;
+  }
+
+  function updateTrendCursor(time) {
+    if (trendChartMeta) {
+      const clampedMs = Math.min(trendChartMeta.wEndMs, Math.max(trendChartMeta.wStartMs, time.getTime()));
+      time = new Date(clampedMs);
+      const idx = Math.round((time.getTime() - trendChartMeta.wStartMs) / 3600000);
+      const pt = trendChartMeta.pts[Math.max(0, Math.min(trendChartMeta.pts.length - 1, idx))];
+      if (pt) {
+        time = new Date(pt.t); // snap exactly onto the sampled hour, so the dot and legend always agree
+        const x = ((pt.t - trendChartMeta.wStartMs) / 3600000) * trendChartMeta.pph;
+        const y = trendChartMeta.plotTop + (1 - (pt.v - trendChartMeta.minV) / (trendChartMeta.maxV - trendChartMeta.minV)) * trendChartMeta.plotH;
+        const xLine = document.getElementById('trendCursorX');
+        const yLine = document.getElementById('trendCursorY');
+        const dot = document.getElementById('trendCursorDot');
+        const handle = document.getElementById('trendCursorHandle');
+        if (xLine) { xLine.setAttribute('x1', x); xLine.setAttribute('x2', x); }
+        if (yLine) { yLine.setAttribute('y1', y); yLine.setAttribute('y2', y); }
+        if (dot) { dot.setAttribute('cx', x); dot.setAttribute('cy', y); }
+        if (handle) handle.setAttribute('x', x - 12);
+      }
+    }
+    trendCursorTime = time;
+    const infoEl = document.getElementById('trendCursorInfo');
+    if (infoEl) infoEl.innerHTML = trendCursorInfoHtml(time);
+  }
+
+  function scrollTrendToFocus(smooth) {
+    const wrap = document.getElementById('trendChartWrap');
+    if (!wrap) return;
+    const days = weatherData.daily.time;
+    const wStart = new Date(days[0] + 'T00:00:00');
+    const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
+    const pph = trendPPH(trendRange);
+    const cursor = trendCursorTime || new Date(weatherData.current.time);
+    const focusTime = (cursor >= wStart && cursor <= wEnd) ? cursor : new Date(selectedDateStr + 'T12:00:00');
+    const x = ((focusTime - wStart) / 3600000) * pph;
+    const left = Math.max(0, x - wrap.clientWidth / 2);
+    if (smooth) wrap.scrollTo({ left, behavior: 'smooth' });
+    else wrap.scrollLeft = left;
+  }
+
+  function jumpTrendToToday() {
+    if (!weatherData) return;
+    updateTrendCursor(new Date(weatherData.current.time));
+    scrollTrendToFocus(true);
+  }
+
+  function trendTimeFromClientX(clientX) {
+    const wrap = document.getElementById('trendChartWrap');
+    const svgEl = wrap && wrap.querySelector('svg');
+    if (!svgEl || !trendChartMeta) return null;
+    const rect = svgEl.getBoundingClientRect();
+    const scale = svgEl.viewBox.baseVal.width / rect.width;
+    const dataX = (clientX - rect.left) * scale;
+    const ms = trendChartMeta.wStartMs + (dataX / trendChartMeta.pph) * 3600000;
+    return new Date(ms);
+  }
+
+  function handleTrendChartClick(e) {
+    if (e.target.id === 'trendCursorHandle') return;
+    const time = trendTimeFromClientX(e.clientX);
+    if (time) updateTrendCursor(time);
+  }
+
+  const TREND_EDGE_ZONE = 50;
+  const TREND_MAX_SCROLL_SPEED = 14;
+
+  function trendAutoScrollStep() {
+    const wrap = document.getElementById('trendChartWrap');
+    if (!wrap || !draggingTrendCursor || trendAutoScrollDir === 0) { trendAutoScrollRAF = null; return; }
+    const maxScroll = wrap.scrollWidth - wrap.clientWidth;
+    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + trendAutoScrollDir * trendAutoScrollSpeed));
+    const time = trendTimeFromClientX(trendLastClientX);
+    if (time) updateTrendCursor(time);
+    trendAutoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
+  }
+
+  function updateTrendAutoScroll(clientX) {
+    const wrap = document.getElementById('trendChartWrap');
+    if (!wrap) { trendAutoScrollDir = 0; return; }
+    const rect = wrap.getBoundingClientRect();
+    const leftDist = clientX - rect.left;
+    const rightDist = rect.right - clientX;
+    if (leftDist < TREND_EDGE_ZONE) {
+      trendAutoScrollDir = -1;
+      trendAutoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / TREND_EDGE_ZONE);
+    } else if (rightDist < TREND_EDGE_ZONE) {
+      trendAutoScrollDir = 1;
+      trendAutoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / TREND_EDGE_ZONE);
+    } else {
+      trendAutoScrollDir = 0;
+    }
+    if (trendAutoScrollDir !== 0 && !trendAutoScrollRAF) {
+      trendAutoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
+    }
+  }
+
+  function stopTrendAutoScroll() {
+    trendAutoScrollDir = 0;
+    if (trendAutoScrollRAF) { cancelAnimationFrame(trendAutoScrollRAF); trendAutoScrollRAF = null; }
+  }
+
+  function handleTrendPointerDown(e) {
+    if (e.target.id !== 'trendCursorHandle') return;
+    draggingTrendCursor = true;
+    trendLastClientX = e.clientX;
+    try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+    e.target.style.cursor = 'grabbing';
+    const time = trendTimeFromClientX(e.clientX);
+    if (time) updateTrendCursor(time);
+    e.preventDefault();
+  }
+
+  function handleTrendPointerMove(e) {
+    if (!draggingTrendCursor) return;
+    trendLastClientX = e.clientX;
+    const time = trendTimeFromClientX(e.clientX);
+    if (time) updateTrendCursor(time);
+    updateTrendAutoScroll(e.clientX);
+  }
+
+  function handleTrendPointerUp(e) {
+    if (!draggingTrendCursor) return;
+    draggingTrendCursor = false;
+    stopTrendAutoScroll();
+    if (e.target.id === 'trendCursorHandle') e.target.style.cursor = 'grab';
   }
 
   function renderTrendPanel() {
     const svg = buildTrendSVG(trendRange);
+    const cursorTime = trendCursorTime || new Date(weatherData.current.time);
     return `
       <div class="panel trend-panel">
         <div class="trend-header">
-          <p class="panel-title">Temperature trend</p>
+          <p class="panel-title">Temperature trend <span class="sub">${unit === 'celsius' ? '°C' : '°F'}</span></p>
           <div class="trend-toggle" id="trendToggle">
             <button data-range="1" class="${trendRange === '1' ? 'active' : ''}">1 Day</button>
             <button data-range="3" class="${trendRange === '3' ? 'active' : ''}">3 Day</button>
             <button data-range="7" class="${trendRange === '7' ? 'active' : ''}">Week</button>
           </div>
         </div>
-        <div class="trend-chart">${svg}</div>
-        <p class="trend-caption">${trendCaption(trendRange)}</p>
+        <div class="chart-cursor-info" id="trendCursorInfo">${trendCursorInfoHtml(cursorTime)}</div>
+        <div class="trend-chart-container">
+          <div class="trend-chart-yaxis" id="trendChartYAxis">${trendYAxisLabelsHtml()}</div>
+          <div class="trend-chart-wrap" id="trendChartWrap">${svg}</div>
+          <button type="button" class="chart-today-btn" id="trendTodayBtn">Today</button>
+        </div>
       </div>
     `;
   }
@@ -1596,10 +1724,10 @@
           <button type="button" class="info-popup-close" id="sunMoonInfoCloseBtn" aria-label="Close">&times;</button>
           ${sunMoonInfoPopupHtml(sunMoonRange)}
         </div>
-        <div class="sunmoon-cursor-info" id="sunMoonCursorInfo">${sunMoonCursorInfoHtml(cursorTime)}</div>
+        <div class="chart-cursor-info" id="sunMoonCursorInfo">${sunMoonCursorInfoHtml(cursorTime)}</div>
         <div class="sunmoon-chart-container">
           <div class="sunmoon-chart-wrap" id="sunMoonChartWrap">${svg}</div>
-          <button type="button" class="sunmoon-today-btn" id="sunMoonTodayBtn">Today</button>
+          <button type="button" class="chart-today-btn" id="sunMoonTodayBtn">Today</button>
         </div>
         <div class="sunmoon-legend">
           <span class="legend-item"><span class="legend-dot" style="background:#E3A857;"></span>Sun altitude</span>
@@ -1932,10 +2060,6 @@
         renderForDate(selectedDateStr);
       });
     });
-    document.querySelectorAll('.trend-dot').forEach(dot => {
-      dot.addEventListener('click', () => selectDate(dot.dataset.date, true));
-    });
-
     document.querySelectorAll('#sunMoonToggle button').forEach(btn => {
       btn.addEventListener('click', () => {
         sunMoonRange = btn.dataset.range;
@@ -1943,6 +2067,7 @@
       });
     });
     scrollSunMoonToFocus(!!smoothSunMoonScroll);
+    scrollTrendToFocus(!!smoothSunMoonScroll);
 
     document.querySelectorAll('.daily-row').forEach(row => {
       row.addEventListener('click', () => selectDate(row.dataset.date, true));

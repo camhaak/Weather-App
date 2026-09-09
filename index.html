@@ -301,8 +301,17 @@
 
   /* Sun, moon & bite chart */
   .sunmoon-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; margin-top: 14px; }
+  .sunmoon-chart-container { position: relative; }
   .sunmoon-chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; cursor: crosshair; }
   .sunmoon-chart-wrap svg { display: block; }
+
+  .sunmoon-today-btn {
+    position: absolute; bottom: 8px; right: 8px; z-index: 5;
+    font-family: 'Work Sans', sans-serif; font-size: 11.5px; font-weight: 500; color: var(--text);
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 5px 11px;
+    cursor: pointer; box-shadow: 0 2px 6px rgba(28,37,65,0.15);
+  }
+  .sunmoon-today-btn:hover { background: var(--surface-alt); }
 
   .info-btn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -723,6 +732,7 @@
     if (infoPopup && !infoPopup.hidden && !e.target.closest('#sunMoonInfoPopup')) {
       infoPopup.hidden = true;
     }
+    if (e.target.closest('#sunMoonTodayBtn')) { jumpSunMoonToToday(); return; }
     if (e.target.closest('#sunMoonChartWrap')) handleSunMoonChartClick(e);
   });
   contentEl.addEventListener('pointerdown', handleSunMoonPointerDown);
@@ -987,6 +997,7 @@
       if (marineRes && marineRes.ok) { try { marineData = await marineRes.json(); } catch (e) { marineData = null; } }
       todayStr = weatherData.current.time.split('T')[0];
       selectedDateStr = todayStr;
+      sunMoonCursorTime = new Date(weatherData.current.time); // reset to "now" for whatever spot just loaded
       saveLocation({ lat, lon, name });
       buildDayPicker();
       renderForDate(selectedDateStr);
@@ -1570,7 +1581,10 @@
           ${sunMoonInfoPopupHtml(sunMoonRange)}
         </div>
         <div class="sunmoon-cursor-info" id="sunMoonCursorInfo">${sunMoonCursorInfoHtml(cursorTime)}</div>
-        <div class="sunmoon-chart-wrap" id="sunMoonChartWrap">${svg}</div>
+        <div class="sunmoon-chart-container">
+          <div class="sunmoon-chart-wrap" id="sunMoonChartWrap">${svg}</div>
+          <button type="button" class="sunmoon-today-btn" id="sunMoonTodayBtn">Today</button>
+        </div>
         <div class="sunmoon-legend">
           <span class="legend-item"><span class="legend-dot" style="background:#E3A857;"></span>Sun altitude</span>
           <span class="legend-item"><span class="legend-dot" style="background:#6B7A99;"></span>Moon altitude</span>
@@ -1581,17 +1595,27 @@
     `;
   }
 
-  function scrollSunMoonToFocus() {
+  // Centers on wherever the cursor currently is (not "now"), so switching between 1/3/Week
+  // zooms — or any other re-render — keeps showing the same moment instead of snapping back.
+  function scrollSunMoonToFocus(smooth) {
     const wrap = document.getElementById('sunMoonChartWrap');
     if (!wrap) return;
     const days = weatherData.daily.time;
     const wStart = new Date(days[0] + 'T00:00:00');
     const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
     const pph = sunMoonPPH(sunMoonRange);
-    const now = new Date(weatherData.current.time);
-    const focusTime = (now >= wStart && now <= wEnd) ? now : new Date(selectedDateStr + 'T12:00:00');
+    const cursor = sunMoonCursorTime || new Date(weatherData.current.time);
+    const focusTime = (cursor >= wStart && cursor <= wEnd) ? cursor : new Date(selectedDateStr + 'T12:00:00');
     const x = ((focusTime - wStart) / 3600000) * pph;
-    wrap.scrollLeft = Math.max(0, x - wrap.clientWidth / 2);
+    const left = Math.max(0, x - wrap.clientWidth / 2);
+    if (smooth) wrap.scrollTo({ left, behavior: 'smooth' });
+    else wrap.scrollLeft = left;
+  }
+
+  function jumpSunMoonToToday() {
+    if (!weatherData) return;
+    updateSunMoonCursor(new Date(weatherData.current.time));
+    scrollSunMoonToFocus(true);
   }
 
   function sunMoonTimeFromClientX(clientX) {

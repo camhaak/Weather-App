@@ -434,6 +434,16 @@
     return `${h}:${m.toString().padStart(2, '0')}${ap}`;
   }
 
+  // Same as shortClock but spells out am/pm — used on the sun/moon chart, where "9:15a" read
+  // ambiguously next to the chart's other labels.
+  function shortClockWords(d) {
+    if (!d) return '--';
+    let h = d.getHours(), m = d.getMinutes();
+    const ap = h >= 12 ? 'pm' : 'am';
+    h = h % 12; if (h === 0) h = 12;
+    return `${h}:${m.toString().padStart(2, '0')}${ap}`;
+  }
+
   function minutesOfDay(d) { return d.getHours() * 60 + d.getMinutes(); }
 
   function fmtDateStr(d) {
@@ -906,6 +916,21 @@
         `<text x="${x}" y="${rowY + 7}" text-anchor="middle" font-size="9" fill="${bold ? '#1C2541' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${bold ? '600' : '400'}">${text}</text>`;
     }
 
+    // Labels are collected per row first, then rendered left-to-right, dropping the text (but
+    // keeping the tick) on any label that would land too close to the one before it — otherwise
+    // "9:15am"/"10:30pm" etc. can overlap when two events fall close together in time.
+    const MIN_LABEL_GAP = 36;
+    function renderMarksRow(marks, rowY) {
+      marks.sort((a, b) => a.x - b.x);
+      let lastShownX = -Infinity, html = '';
+      marks.forEach(m => {
+        const showText = (m.x - lastShownX) >= MIN_LABEL_GAP;
+        if (showText) lastShownX = m.x;
+        html += eventMark(m.x, rowY, m.color, showText ? m.text : '', m.bold);
+      });
+      return html;
+    }
+
     const sunPts = [], moonPts = [];
     const stepMs = 20 * 60000;
     for (let t = wStart.getTime(); t <= wEnd.getTime(); t += stepMs) {
@@ -917,7 +942,8 @@
       moonPts.push(`${x === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${altToY(moonAlt).toFixed(1)}`);
     }
 
-    let bandsHtml = '', eventMarks = '', majorTimesMs = [], minorTimesMs = [], sunEventTimesMs = [];
+    let bandsHtml = '', majorTimesMs = [], minorTimesMs = [], sunEventTimesMs = [];
+    const sunMarks = [], moonMarks = [];
     days.forEach(d => {
       const dayStart = new Date(d + 'T00:00:00');
       // Reuse the same daily sunrise/sunset used elsewhere in the app (Open-Meteo), rather than
@@ -928,8 +954,8 @@
       if (sunrise) sunEventTimesMs.push(sunrise.getTime());
       if (sunset) sunEventTimesMs.push(sunset.getTime());
       if (!compact) {
-        if (sunrise) { const x = xForTime(sunrise.getTime()); eventMarks += eventMark(x, sunRowY, SUN_COLOR, shortClock(sunrise), false); }
-        if (sunset) { const x = xForTime(sunset.getTime()); eventMarks += eventMark(x, sunRowY, SUN_COLOR, shortClock(sunset), false); }
+        if (sunrise) sunMarks.push({ x: xForTime(sunrise.getTime()), color: SUN_COLOR, text: shortClockWords(sunrise), bold: false });
+        if (sunset) sunMarks.push({ x: xForTime(sunset.getTime()), color: SUN_COLOR, text: shortClockWords(sunset), bold: false });
       }
 
       const sol = computeSolunar(lastCoords.lat, lastCoords.lon, dayStart);
@@ -943,8 +969,8 @@
         const halfW = pph; // 1 hour half-width -> 2h window
         const eff = computeBiteEffectiveness(mm.center, true, trendCls);
         const opacity = (0.16 + (eff / 100) * 0.34).toFixed(2);
-        bandsHtml += `<rect x="${(cx - halfW).toFixed(1)}" y="${plotTop}" width="${(halfW * 2).toFixed(1)}" height="${plotH}" fill="${MAJOR_COLOR}" opacity="${opacity}" stroke="${MAJOR_COLOR}" stroke-width="1.5" stroke-opacity="0.7"><title>Major bite window: ${shortClock(mm.center)} (2h) — ~${eff}% estimated effectiveness</title></rect>`;
-        if (!compact) eventMarks += eventMark(cx, moonRowY, MAJOR_COLOR, shortClock(mm.center), true);
+        bandsHtml += `<rect x="${(cx - halfW).toFixed(1)}" y="${plotTop}" width="${(halfW * 2).toFixed(1)}" height="${plotH}" fill="${MAJOR_COLOR}" opacity="${opacity}" stroke="${MAJOR_COLOR}" stroke-width="1.5" stroke-opacity="0.7"><title>Major bite window: ${shortClockWords(mm.center)} (2h) — ~${eff}% estimated effectiveness</title></rect>`;
+        if (!compact) moonMarks.push({ x: cx, color: MAJOR_COLOR, text: shortClockWords(mm.center), bold: true });
       });
       // Minor bite windows (moonrise/moonset): shorter, lighter band in a distinct hue from major.
       sol.minors.forEach(mm => {
@@ -954,10 +980,11 @@
         const bandTop = plotTop + plotH * 0.25;
         const eff = computeBiteEffectiveness(mm.center, false, trendCls);
         const opacity = (0.14 + (eff / 100) * 0.30).toFixed(2);
-        bandsHtml += `<rect x="${(cx - halfW).toFixed(1)}" y="${bandTop.toFixed(1)}" width="${(halfW * 2).toFixed(1)}" height="${(plotH * 0.5).toFixed(1)}" fill="${MINOR_COLOR}" opacity="${opacity}"><title>Minor bite window: ${shortClock(mm.center)} (${mm.label}) — ~${eff}% estimated effectiveness</title></rect>`;
-        if (!compact) eventMarks += eventMark(cx, moonRowY, MINOR_COLOR, shortClock(mm.center), false);
+        bandsHtml += `<rect x="${(cx - halfW).toFixed(1)}" y="${bandTop.toFixed(1)}" width="${(halfW * 2).toFixed(1)}" height="${(plotH * 0.5).toFixed(1)}" fill="${MINOR_COLOR}" opacity="${opacity}"><title>Minor bite window: ${shortClockWords(mm.center)} (${mm.label}) — ~${eff}% estimated effectiveness</title></rect>`;
+        if (!compact) moonMarks.push({ x: cx, color: MINOR_COLOR, text: shortClockWords(mm.center), bold: false });
       });
     });
+    const eventMarks = renderMarksRow(sunMarks, sunRowY) + renderMarksRow(moonMarks, moonRowY);
 
     let dividers = '', dayLabels = '';
     days.forEach((d, i) => {
@@ -1050,7 +1077,7 @@
 
     const sunState = sunAlt > 0 ? 'above horizon' : 'below horizon';
     const moonState = moonAlt > 0 ? 'above horizon' : 'below horizon';
-    const biteText = bite.active ? `${bite.type === 'major' ? 'Major' : 'Minor'} bite window (peak ${shortClock(bite.center)})` : 'Not a bite window';
+    const biteText = bite.active ? `${bite.type === 'major' ? 'Major' : 'Minor'} bite window (peak ${shortClockWords(bite.center)})` : 'Not a bite window';
     const biteClass = bite.active ? (bite.type === 'major' ? 'cursor-bite-major' : 'cursor-bite-minor') : '';
 
     return `

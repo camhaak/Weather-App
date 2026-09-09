@@ -803,7 +803,7 @@
 
   function sunMoonCaption(range) {
     const zoomNote = range === '1' ? 'Zoomed in for hourly detail.' : range === '3' ? 'Zoomed to a multi-day view.' : 'Zoomed out for a broad overview.';
-    return `${zoomNote} Scroll to explore the full forecast. Tap the chart to move the cursor, or press and drag the bar to scrub through time — the key above updates as you go. Taller teal bands are major bite windows, shorter grey-blue bands are minor ones — how vivid a band is reflects its estimated effectiveness (moon phase, distance from Earth & pressure trend), which shifts day to day.`;
+    return `${zoomNote} Scroll to explore the full forecast. Tap the chart to move the cursor, or press and drag the bar to scrub through time — it snaps onto major bites, minor bites, and sunrise/sunset, turning teal, slate-blue, or gold to show which, and the key above updates as you go. Taller teal bands are major bite windows, shorter grey-blue bands are minor ones — how vivid a band is reflects its estimated effectiveness (moon phase, distance from Earth & pressure trend), which shifts day to day.`;
   }
 
   // ---- Estimated bite-window "effectiveness" ----
@@ -823,6 +823,17 @@
     else if (trendCls === 'trend-rising') score -= 0.05;
     score = Math.max(0.18, Math.min(1, score));
     return Math.round(score * 100);
+  }
+
+  // Which color (if any) the cursor should take when parked exactly on a significant event —
+  // shared by the initial chart build and by updateSunMoonCursor's live drag updates, so both
+  // agree on what "locked on" looks like for each event type.
+  function sunMoonSnapColor(timeMs, majors, minors, sunEvents) {
+    const near = list => (list || []).some(t => Math.abs(t - timeMs) < 1000);
+    if (near(majors)) return '#2F7268';
+    if (near(minors)) return '#5B6A86';
+    if (near(sunEvents)) return '#E3A857';
+    return null;
   }
 
   function buildSunMoonChart(range) {
@@ -866,7 +877,7 @@
       moonPts.push(`${x === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${altToY(moonAlt).toFixed(1)}`);
     }
 
-    let bandsHtml = '', eventMarks = '', majorTimesMs = [];
+    let bandsHtml = '', eventMarks = '', majorTimesMs = [], minorTimesMs = [], sunEventTimesMs = [];
     days.forEach(d => {
       const dayStart = new Date(d + 'T00:00:00');
       // Reuse the same daily sunrise/sunset used elsewhere in the app (Open-Meteo), rather than
@@ -874,6 +885,8 @@
       const dIdx = weatherData.daily.time.indexOf(d);
       const sunrise = dIdx !== -1 ? new Date(weatherData.daily.sunrise[dIdx]) : null;
       const sunset = dIdx !== -1 ? new Date(weatherData.daily.sunset[dIdx]) : null;
+      if (sunrise) sunEventTimesMs.push(sunrise.getTime());
+      if (sunset) sunEventTimesMs.push(sunset.getTime());
       if (!compact) {
         if (sunrise) { const x = xForTime(sunrise.getTime()); eventMarks += eventMark(x, sunRowY, SUN_COLOR, shortClock(sunrise), false); }
         if (sunset) { const x = xForTime(sunset.getTime()); eventMarks += eventMark(x, sunRowY, SUN_COLOR, shortClock(sunset), false); }
@@ -895,6 +908,7 @@
       });
       // Minor bite windows (moonrise/moonset): shorter, lighter band in a distinct hue from major.
       sol.minors.forEach(mm => {
+        minorTimesMs.push(mm.center.getTime());
         const cx = xForTime(mm.center.getTime());
         const halfW = pph / 2;
         const bandTop = plotTop + plotH * 0.25;
@@ -917,14 +931,15 @@
     });
 
     // Interactive cursor: defaults to "now" until the user clicks/drags the chart to pin it elsewhere.
-    // It snaps onto major bite peaks (see sunMoonSnappedTimeFromClientX) and turns teal with a
-    // glow when locked onto one, so those moments are easy to find and unmistakable once found.
+    // It snaps onto major/minor bite peaks and sunrise/sunset (see sunMoonSnappedTimeFromClientX),
+    // taking on that event's color with a glow when locked, so it's easy to find and unmistakable.
     const cursorTime = sunMoonCursorTime || new Date(weatherData.current.time);
     let cursorLine = '';
     if (cursorTime >= wStart && cursorTime <= wEnd) {
       const x = xForTime(cursorTime.getTime());
-      const isSnapped = majorTimesMs.some(t => Math.abs(t - cursorTime.getTime()) < 1000);
-      const cursorColor = isSnapped ? '#2F7268' : '#1C2541';
+      const snapColor = sunMoonSnapColor(cursorTime.getTime(), majorTimesMs, minorTimesMs, sunEventTimesMs);
+      const isSnapped = snapColor !== null;
+      const cursorColor = snapColor || '#1C2541';
       cursorLine = `
         <circle id="sunMoonCursorGlow" cx="${x}" cy="${plotTop - 6}" r="8" fill="${cursorColor}" opacity="${isSnapped ? 0.25 : 0}"/>
         <line id="sunMoonCursorLine" x1="${x}" x2="${x}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="${cursorColor}" stroke-width="${isSnapped ? 2.5 : 2}" stroke-linecap="round"/>
@@ -943,7 +958,7 @@
       ${cursorLine}${eventMarks}${dayLabels}
     </svg>`;
 
-    sunMoonChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, majorTimesMs };
+    sunMoonChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, majorTimesMs, minorTimesMs, sunEventTimesMs };
     return svg;
   }
 
@@ -1014,8 +1029,9 @@
     sunMoonCursorTime = time;
     if (sunMoonChartMeta) {
       const x = ((time - sunMoonChartMeta.wStartMs) / 3600000) * sunMoonChartMeta.pph;
-      const isSnapped = (sunMoonChartMeta.majorTimesMs || []).some(t => Math.abs(t - time.getTime()) < 1000);
-      const cursorColor = isSnapped ? '#2F7268' : '#1C2541';
+      const snapColor = sunMoonSnapColor(time.getTime(), sunMoonChartMeta.majorTimesMs, sunMoonChartMeta.minorTimesMs, sunMoonChartMeta.sunEventTimesMs);
+      const isSnapped = snapColor !== null;
+      const cursorColor = snapColor || '#1C2541';
       const glow = document.getElementById('sunMoonCursorGlow');
       const line = document.getElementById('sunMoonCursorLine');
       const dot = document.getElementById('sunMoonCursorDot');
@@ -1082,18 +1098,29 @@
   // A fixed time window (not pixel-based) so the pull feels consistent at every zoom level —
   // a pixel radius would swing from under a minute at the Week zoom to nearly an hour at the
   // 1 Day zoom, since those map very different amounts of time to the same screen distance.
-  const SUNMOON_SNAP_MS = 10 * 60000; // ~10 minutes: a "slight" magnetic pull toward major bite peaks
+  // Each event type gets its own "slight" pull window, roughly scaled to how prominent that
+  // event is (majors have the widest 2h band, minors and sun events are more momentary).
+  const SUNMOON_SNAP_WINDOWS = [
+    { key: 'majorTimesMs', ms: 10 * 60000 },
+    { key: 'minorTimesMs', ms: 6 * 60000 },
+    { key: 'sunEventTimesMs', ms: 6 * 60000 },
+  ];
 
-  // Pulls the cursor onto the nearest major bite peak when it's within that window, so those
-  // moments are easy to land on precisely without needing pixel-perfect dragging.
+  // Pulls the cursor onto the nearest significant event — major/minor bite peak, sunrise, or
+  // sunset — when it's within that event's window, so those moments are easy to land on
+  // precisely without needing pixel-perfect dragging. When more than one is in range, whichever
+  // is genuinely closest wins.
   function sunMoonSnapTime(rawTime) {
-    if (!rawTime || !sunMoonChartMeta || !sunMoonChartMeta.majorTimesMs.length) return rawTime;
+    if (!rawTime || !sunMoonChartMeta) return rawTime;
+    const rawMs = rawTime.getTime();
     let best = null, bestDist = Infinity;
-    for (const t of sunMoonChartMeta.majorTimesMs) {
-      const dist = Math.abs(t - rawTime.getTime());
-      if (dist < bestDist) { bestDist = dist; best = t; }
-    }
-    return (best !== null && bestDist <= SUNMOON_SNAP_MS) ? new Date(best) : rawTime;
+    SUNMOON_SNAP_WINDOWS.forEach(({ key, ms }) => {
+      (sunMoonChartMeta[key] || []).forEach(t => {
+        const dist = Math.abs(t - rawMs);
+        if (dist <= ms && dist < bestDist) { bestDist = dist; best = t; }
+      });
+    });
+    return best !== null ? new Date(best) : rawTime;
   }
 
   function sunMoonSnappedTimeFromClientX(clientX) {

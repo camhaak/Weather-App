@@ -389,10 +389,8 @@
     return null; // no explicit preference saved yet
   }
 
-  let systemPrefersDark = false;
-  try { systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
   const savedDarkPref = getSavedDarkMode();
-  let darkMode = savedDarkPref === null ? systemPrefersDark : savedDarkPref;
+  let darkMode = savedDarkPref === null ? true : savedDarkPref; // dark by default until the user picks otherwise
 
   function applyDarkMode() {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');

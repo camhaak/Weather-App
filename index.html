@@ -262,11 +262,13 @@
   .compare-cols { display: flex; }
 
   .compare-row-label {
-    height: 40px; display: flex; align-items: center; padding: 0 10px; font-size: 11.5px; color: var(--text-muted);
+    height: 40px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    padding: 0 10px; font-size: 11.5px; color: var(--text-muted); line-height: 1.3;
     border-bottom: 1px solid var(--border-faint2);
   }
   .compare-row-label:first-child { font-size: 11px; color: var(--text-muted); }
   .compare-row-label:last-child { border-bottom: none; }
+  .compare-row-label .row-unit { font-size: 9.5px; opacity: 0.75; }
 
   .compare-col { flex: 0 0 66px; border-right: 1px solid var(--border-faint2); cursor: pointer; }
   .compare-col:last-child { border-right: none; }
@@ -1835,11 +1837,11 @@
       <div class="compare-wrap">
         <div class="compare-labels">
           <div class="compare-row-label">&nbsp;</div>
-          <div class="compare-row-label">Hi / Lo</div>
-          <div class="compare-row-label">Pressure</div>
-          <div class="compare-row-label">Wind</div>
-          <div class="compare-row-label">Water</div>
-          <div class="compare-row-label">Waves</div>
+          <div class="compare-row-label">Hi / Lo<span class="row-unit">${unit === 'celsius' ? '°C' : '°F'}</span></div>
+          <div class="compare-row-label">Pressure<span class="row-unit">${pressureUnitLabel()}</span></div>
+          <div class="compare-row-label">Wind<span class="row-unit">${windUnitLabel()}</span></div>
+          <div class="compare-row-label">Water<span class="row-unit">${unit === 'celsius' ? '°C' : '°F'}</span></div>
+          <div class="compare-row-label">Waves<span class="row-unit">${waveUnitLabel()}</span></div>
           <div class="compare-row-label">Moon</div>
           <div class="compare-row-label">Major</div>
         </div>

@@ -866,7 +866,7 @@
       moonPts.push(`${x === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${altToY(moonAlt).toFixed(1)}`);
     }
 
-    let bandsHtml = '', eventMarks = '';
+    let bandsHtml = '', eventMarks = '', majorTimesMs = [];
     days.forEach(d => {
       const dayStart = new Date(d + 'T00:00:00');
       // Reuse the same daily sunrise/sunset used elsewhere in the app (Open-Meteo), rather than
@@ -885,6 +885,7 @@
       // Major bite windows: full-height band with a solid border, strongest visual weight.
       // Fill opacity is driven by the estimated effectiveness score (more vivid = stronger).
       sol.majors.forEach(mm => {
+        majorTimesMs.push(mm.center.getTime());
         const cx = xForTime(mm.center.getTime());
         const halfW = pph; // 1 hour half-width -> 2h window
         const eff = computeBiteEffectiveness(mm.center, true, trendCls);
@@ -916,13 +917,18 @@
     });
 
     // Interactive cursor: defaults to "now" until the user clicks/drags the chart to pin it elsewhere.
+    // It snaps onto major bite peaks (see sunMoonSnappedTimeFromClientX) and turns teal with a
+    // glow when locked onto one, so those moments are easy to find and unmistakable once found.
     const cursorTime = sunMoonCursorTime || new Date(weatherData.current.time);
     let cursorLine = '';
     if (cursorTime >= wStart && cursorTime <= wEnd) {
       const x = xForTime(cursorTime.getTime());
+      const isSnapped = majorTimesMs.some(t => Math.abs(t - cursorTime.getTime()) < 1000);
+      const cursorColor = isSnapped ? '#2F7268' : '#1C2541';
       cursorLine = `
-        <line id="sunMoonCursorLine" x1="${x}" x2="${x}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="#1C2541" stroke-width="2" stroke-linecap="round"/>
-        <circle id="sunMoonCursorDot" cx="${x}" cy="${plotTop - 6}" r="4" fill="#1C2541"/>
+        <circle id="sunMoonCursorGlow" cx="${x}" cy="${plotTop - 6}" r="8" fill="${cursorColor}" opacity="${isSnapped ? 0.25 : 0}"/>
+        <line id="sunMoonCursorLine" x1="${x}" x2="${x}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="${cursorColor}" stroke-width="${isSnapped ? 2.5 : 2}" stroke-linecap="round"/>
+        <circle id="sunMoonCursorDot" cx="${x}" cy="${plotTop - 6}" r="${isSnapped ? 5 : 4}" fill="${cursorColor}"/>
         <rect id="sunMoonCursorHandle" x="${x - 12}" y="${plotTop - 14}" width="24" height="${plotH + 28}" fill="transparent" style="cursor:grab; touch-action:none;"/>
       `;
     }
@@ -937,7 +943,7 @@
       ${cursorLine}${eventMarks}${dayLabels}
     </svg>`;
 
-    sunMoonChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph };
+    sunMoonChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, majorTimesMs };
     return svg;
   }
 
@@ -1008,11 +1014,15 @@
     sunMoonCursorTime = time;
     if (sunMoonChartMeta) {
       const x = ((time - sunMoonChartMeta.wStartMs) / 3600000) * sunMoonChartMeta.pph;
+      const isSnapped = (sunMoonChartMeta.majorTimesMs || []).some(t => Math.abs(t - time.getTime()) < 1000);
+      const cursorColor = isSnapped ? '#2F7268' : '#1C2541';
+      const glow = document.getElementById('sunMoonCursorGlow');
       const line = document.getElementById('sunMoonCursorLine');
       const dot = document.getElementById('sunMoonCursorDot');
       const handle = document.getElementById('sunMoonCursorHandle');
-      if (line) { line.setAttribute('x1', x); line.setAttribute('x2', x); }
-      if (dot) dot.setAttribute('cx', x);
+      if (glow) { glow.setAttribute('cx', x); glow.setAttribute('fill', cursorColor); glow.setAttribute('opacity', isSnapped ? 0.25 : 0); }
+      if (line) { line.setAttribute('x1', x); line.setAttribute('x2', x); line.setAttribute('stroke', cursorColor); line.setAttribute('stroke-width', isSnapped ? 2.5 : 2); }
+      if (dot) { dot.setAttribute('cx', x); dot.setAttribute('fill', cursorColor); dot.setAttribute('r', isSnapped ? 5 : 4); }
       if (handle) handle.setAttribute('x', x - 12);
     }
     const infoEl = document.getElementById('sunMoonCursorInfo');
@@ -1069,9 +1079,30 @@
     return new Date(ms);
   }
 
+  // A fixed time window (not pixel-based) so the pull feels consistent at every zoom level —
+  // a pixel radius would swing from under a minute at the Week zoom to nearly an hour at the
+  // 1 Day zoom, since those map very different amounts of time to the same screen distance.
+  const SUNMOON_SNAP_MS = 10 * 60000; // ~10 minutes: a "slight" magnetic pull toward major bite peaks
+
+  // Pulls the cursor onto the nearest major bite peak when it's within that window, so those
+  // moments are easy to land on precisely without needing pixel-perfect dragging.
+  function sunMoonSnapTime(rawTime) {
+    if (!rawTime || !sunMoonChartMeta || !sunMoonChartMeta.majorTimesMs.length) return rawTime;
+    let best = null, bestDist = Infinity;
+    for (const t of sunMoonChartMeta.majorTimesMs) {
+      const dist = Math.abs(t - rawTime.getTime());
+      if (dist < bestDist) { bestDist = dist; best = t; }
+    }
+    return (best !== null && bestDist <= SUNMOON_SNAP_MS) ? new Date(best) : rawTime;
+  }
+
+  function sunMoonSnappedTimeFromClientX(clientX) {
+    return sunMoonSnapTime(sunMoonTimeFromClientX(clientX));
+  }
+
   function handleSunMoonChartClick(e) {
     if (e.target.id === 'sunMoonCursorHandle') return; // a plain tap-without-drag on the handle is a no-op here
-    const time = sunMoonTimeFromClientX(e.clientX);
+    const time = sunMoonSnappedTimeFromClientX(e.clientX);
     if (time) updateSunMoonCursor(time);
   }
 
@@ -1083,7 +1114,7 @@
     if (!wrap || !draggingSunMoonCursor || sunMoonAutoScrollDir === 0) { sunMoonAutoScrollRAF = null; return; }
     const maxScroll = wrap.scrollWidth - wrap.clientWidth;
     wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + sunMoonAutoScrollDir * sunMoonAutoScrollSpeed));
-    const time = sunMoonTimeFromClientX(sunMoonLastClientX);
+    const time = sunMoonSnappedTimeFromClientX(sunMoonLastClientX);
     if (time) updateSunMoonCursor(time);
     sunMoonAutoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
   }
@@ -1119,7 +1150,7 @@
     sunMoonLastClientX = e.clientX;
     try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
     e.target.style.cursor = 'grabbing';
-    const time = sunMoonTimeFromClientX(e.clientX);
+    const time = sunMoonSnappedTimeFromClientX(e.clientX);
     if (time) updateSunMoonCursor(time);
     e.preventDefault();
   }
@@ -1127,7 +1158,7 @@
   function handleSunMoonPointerMove(e) {
     if (!draggingSunMoonCursor) return;
     sunMoonLastClientX = e.clientX;
-    const time = sunMoonTimeFromClientX(e.clientX);
+    const time = sunMoonSnappedTimeFromClientX(e.clientX);
     if (time) updateSunMoonCursor(time);
     updateSunMoonAutoScroll(e.clientX);
   }

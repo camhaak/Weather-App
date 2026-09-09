@@ -1020,8 +1020,15 @@
 
   function selectDate(dateStr, scrollChipIntoView) {
     selectedDateStr = dateStr;
+    // Move the sun-moon cursor to the newly selected date, keeping its time-of-day, so the
+    // chart follows the date picker instead of staying parked on whatever day it was on before.
+    const baseCursor = sunMoonCursorTime || new Date(weatherData.current.time);
+    const hh = String(baseCursor.getHours()).padStart(2, '0');
+    const mi = String(baseCursor.getMinutes()).padStart(2, '0');
+    const ss = String(baseCursor.getSeconds()).padStart(2, '0');
+    sunMoonCursorTime = new Date(`${dateStr}T${hh}:${mi}:${ss}`);
     document.querySelectorAll('.day-chip').forEach(b => b.classList.toggle('selected', b.dataset.date === dateStr));
-    renderForDate(dateStr);
+    renderForDate(dateStr, true);
     if (scrollChipIntoView) {
       const chip = document.querySelector(`.day-chip[data-date="${dateStr}"]`);
       centerHorizontally(document.getElementById('dayPicker'), chip, true);
@@ -1731,7 +1738,7 @@
     if (e.target.id === 'sunMoonCursorHandle') e.target.style.cursor = 'grab';
   }
 
-  function renderForDate(dateStr) {
+  function renderForDate(dateStr, smoothSunMoonScroll) {
     const m = computeDayMetrics(dateStr);
     if (!m) { contentEl.innerHTML = `<div class="status">No weather data available for this date.</div>`; return; }
 
@@ -1926,7 +1933,7 @@
         renderForDate(selectedDateStr);
       });
     });
-    scrollSunMoonToFocus();
+    scrollSunMoonToFocus(!!smoothSunMoonScroll);
 
     document.querySelectorAll('.daily-row').forEach(row => {
       row.addEventListener('click', () => selectDate(row.dataset.date, true));

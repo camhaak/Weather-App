@@ -61,11 +61,23 @@
 
   .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 30px; }
 
-  .app-header { position: relative; display: flex; justify-content: flex-end; padding: 14px 20px 0; }
+  .app-header { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 20px 0; }
+  .app-header-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+  .location-btn {
+    display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%;
+    padding: 7px 14px 7px 10px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text); font-family: 'Work Sans', sans-serif; font-size: 14px;
+    cursor: pointer;
+  }
+  .location-btn:hover { background: var(--surface-alt); }
+  .location-btn svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--text-muted); }
+  .location-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   .settings-btn {
     display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;
     border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted);
-    cursor: pointer; padding: 0;
+    cursor: pointer; padding: 0; flex: 0 0 auto;
   }
   .settings-btn:hover { background: var(--surface-alt); }
   .settings-btn svg { width: 18px; height: 18px; }
@@ -84,7 +96,14 @@
   .switch.on { background: var(--teal); }
   .switch.on .switch-knob { left: 20px; }
 
-  .search-bar { display: flex; gap: 8px; padding: 20px 20px 0; }
+  .location-popup {
+    position: absolute; top: 44px; left: 20px; right: 20px; z-index: 50;
+    background: var(--surface); border: 1px solid var(--border-faint); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(28,37,65,0.15); padding: 16px; max-height: 75vh; overflow-y: auto;
+  }
+  .location-popup[hidden] { display: none; }
+
+  .search-bar { display: flex; gap: 8px; }
 
   .search-bar input {
     flex: 1; font-family: 'Work Sans', sans-serif; font-size: 16px; padding: 12px 14px;
@@ -97,18 +116,43 @@
     border: none; border-radius: 10px; background: var(--accent-strong); color: var(--cream); cursor: pointer;
   }
 
-  .locate-row { padding: 10px 20px 0; display: flex; justify-content: space-between; align-items: center; }
-  .locate-left { display: flex; align-items: center; gap: 14px; }
+  .locate-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
   .locate-link { font-size: 14px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
 
   .unit-toggle { font-size: 14px; color: var(--text-muted); background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; cursor: pointer; }
 
-  .results { margin: 8px 20px 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; display: none; }
+  .results { margin: 8px 0 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; display: none; }
   .results.show { display: block; }
   .results button { display: block; width: 100%; text-align: left; padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--border-faint); font-family: 'Work Sans', sans-serif; font-size: 15px; color: var(--text); cursor: pointer; }
   .results button:last-child { border-bottom: none; }
   .results button:hover { background: var(--surface-alt); }
+
+  .favorites-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-faint); }
+  .favorites-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .fav-star-btn {
+    font-family: 'Work Sans', sans-serif; font-size: 12.5px; color: var(--text-muted); background: var(--surface-alt2);
+    border: none; border-radius: 14px; padding: 5px 10px; cursor: pointer; white-space: nowrap;
+  }
+  .fav-star-btn.saved { color: var(--gold); }
+  .favorites-empty { font-size: 12.5px; color: var(--text-muted); padding: 4px 0; }
+  .favorite-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; }
+  .favorite-select {
+    flex: 1; min-width: 0; text-align: left; font-family: 'Work Sans', sans-serif; font-size: 14px; color: var(--text);
+    background: none; border: none; padding: 9px 8px; border-radius: 8px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .favorite-select:hover { background: var(--surface-alt); }
+  .favorite-select.current { color: var(--teal); font-weight: 500; }
+  .favorite-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+  .fav-reorder-btn, .fav-delete-btn {
+    display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+    border: none; background: none; color: var(--text-muted); font-size: 14px; border-radius: 6px; cursor: pointer; padding: 0;
+  }
+  .fav-reorder-btn:hover, .fav-delete-btn:hover { background: var(--surface-alt2); }
+  .fav-reorder-btn:disabled { opacity: 0.3; cursor: default; }
+  .fav-reorder-btn:disabled:hover { background: none; }
+  .fav-delete-btn:hover { color: #C4633F; }
 
   /* Sticky day picker */
   #dayPickerWrap {
@@ -297,13 +341,47 @@
 <div class="app">
 
   <div class="app-header">
-    <button type="button" class="settings-btn" id="settingsBtn" aria-label="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-        <line x1="4" y1="7" x2="20" y2="7"/><circle cx="15" cy="7" r="2.2" fill="var(--surface)"/>
-        <line x1="4" y1="12" x2="20" y2="12"/><circle cx="9" cy="12" r="2.2" fill="var(--surface)"/>
-        <line x1="4" y1="17" x2="20" y2="17"/><circle cx="17" cy="17" r="2.2" fill="var(--surface)"/>
+    <button type="button" class="location-btn" id="locationBtn" aria-label="Location">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 21s-7-6.4-7-11.5A7 7 0 0 1 19 9.5C19 14.6 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/>
       </svg>
+      <span id="locationBtnLabel">Search location</span>
     </button>
+
+    <div class="app-header-right">
+      <button class="unit-toggle" id="unitToggle">°C</button>
+      <button type="button" class="settings-btn" id="settingsBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <line x1="4" y1="7" x2="20" y2="7"/><circle cx="15" cy="7" r="2.2" fill="var(--surface)"/>
+          <line x1="4" y1="12" x2="20" y2="12"/><circle cx="9" cy="12" r="2.2" fill="var(--surface)"/>
+          <line x1="4" y1="17" x2="20" y2="17"/><circle cx="17" cy="17" r="2.2" fill="var(--surface)"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="location-popup" id="locationPopup" hidden>
+      <button type="button" class="info-popup-close" id="locationCloseBtn" aria-label="Close">&times;</button>
+      <p class="settings-title">Location</p>
+
+      <div class="search-bar">
+        <input type="text" id="cityInput" placeholder="Search a coastal spot" autocomplete="off">
+        <button id="searchBtn">Search</button>
+      </div>
+      <div class="results" id="results"></div>
+      <div class="locate-left" style="margin-top:10px;">
+        <button class="locate-link" id="locateBtn">Use my location</button>
+        <button class="locate-link" id="forgetBtn" style="display:none;">Forget saved spot</button>
+      </div>
+
+      <div class="favorites-section">
+        <div class="favorites-header">
+          <p class="settings-title" style="margin:0;">Favorites</p>
+          <button type="button" class="fav-star-btn" id="favToggleBtn" style="display:none;">☆ Save this spot</button>
+        </div>
+        <div id="favoritesList"></div>
+      </div>
+    </div>
+
     <div class="settings-popup" id="settingsPopup" hidden>
       <button type="button" class="info-popup-close" id="settingsCloseBtn" aria-label="Close">&times;</button>
       <p class="settings-title">Settings</p>
@@ -313,21 +391,6 @@
       </div>
     </div>
   </div>
-
-  <div class="search-bar">
-    <input type="text" id="cityInput" placeholder="Search a coastal spot" autocomplete="off">
-    <button id="searchBtn">Search</button>
-  </div>
-
-  <div class="locate-row">
-    <div class="locate-left">
-      <button class="locate-link" id="locateBtn">Use my location</button>
-      <button class="locate-link" id="forgetBtn" style="display:none;">Forget saved spot</button>
-    </div>
-    <button class="unit-toggle" id="unitToggle">°C</button>
-  </div>
-
-  <div class="results" id="results"></div>
 
   <div id="dayPickerWrap"></div>
   <div id="content">
@@ -352,6 +415,12 @@
   const settingsPopup = document.getElementById('settingsPopup');
   const settingsCloseBtn = document.getElementById('settingsCloseBtn');
   const darkModeSwitch = document.getElementById('darkModeSwitch');
+  const locationBtn = document.getElementById('locationBtn');
+  const locationBtnLabel = document.getElementById('locationBtnLabel');
+  const locationPopup = document.getElementById('locationPopup');
+  const locationCloseBtn = document.getElementById('locationCloseBtn');
+  const favToggleBtn = document.getElementById('favToggleBtn');
+  const favoritesListEl = document.getElementById('favoritesList');
 
   const SAVED_LOCATION_KEY = 'tideAndTime.savedLocation';
 
@@ -376,6 +445,125 @@
   function updateForgetBtn() {
     forgetBtn.style.display = getSavedLocation() ? '' : 'none';
   }
+
+  function updateLocationBtnLabel() {
+    locationBtnLabel.textContent = (lastCoords && lastCoords.name) ? lastCoords.name : 'Search location';
+  }
+
+  // ---- Favorites: multiple saved spots, quick-switchable, reorderable ----
+  const FAVORITES_KEY = 'tideAndTime.favorites';
+
+  function getFavorites() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY));
+      if (Array.isArray(parsed)) {
+        return parsed.filter(f => f && typeof f.lat === 'number' && typeof f.lon === 'number' && typeof f.name === 'string');
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  let favorites = getFavorites();
+
+  function saveFavoritesList() {
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch (e) {}
+  }
+
+  function sameSpot(a, b) {
+    return !!a && !!b && Math.abs(a.lat - b.lat) < 0.001 && Math.abs(a.lon - b.lon) < 0.001;
+  }
+
+  function isFavorited(loc) {
+    return favorites.some(f => sameSpot(f, loc));
+  }
+
+  function toggleFavoriteCurrent() {
+    if (!lastCoords) return;
+    if (isFavorited(lastCoords)) {
+      favorites = favorites.filter(f => !sameSpot(f, lastCoords));
+    } else {
+      favorites.push({ lat: lastCoords.lat, lon: lastCoords.lon, name: lastCoords.name });
+    }
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
+  function moveFavorite(index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= favorites.length) return;
+    [favorites[index], favorites[target]] = [favorites[target], favorites[index]];
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
+  function deleteFavorite(index) {
+    favorites.splice(index, 1);
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
+  function selectFavorite(index) {
+    const f = favorites[index];
+    if (!f) return;
+    cityInput.value = f.name;
+    locationPopup.hidden = true;
+    loadLocation(f.lat, f.lon, f.name);
+  }
+
+  function renderFavoritesUI() {
+    if (lastCoords) {
+      favToggleBtn.style.display = '';
+      const saved = isFavorited(lastCoords);
+      favToggleBtn.textContent = saved ? '★ Saved' : '☆ Save this spot';
+      favToggleBtn.classList.toggle('saved', saved);
+    } else {
+      favToggleBtn.style.display = 'none';
+    }
+
+    if (favorites.length === 0) {
+      favoritesListEl.innerHTML = '<p class="favorites-empty">No favorites yet — search a spot, then tap "Save this spot".</p>';
+      return;
+    }
+    favoritesListEl.innerHTML = favorites.map((f, i) => {
+      const isCurrent = sameSpot(f, lastCoords);
+      return `
+        <div class="favorite-row">
+          <button type="button" class="favorite-select ${isCurrent ? 'current' : ''}" data-index="${i}">${f.name}</button>
+          <div class="favorite-actions">
+            <button type="button" class="fav-reorder-btn" data-dir="-1" data-index="${i}" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+            <button type="button" class="fav-reorder-btn" data-dir="1" data-index="${i}" aria-label="Move down" ${i === favorites.length - 1 ? 'disabled' : ''}>&darr;</button>
+            <button type="button" class="fav-delete-btn" data-index="${i}" aria-label="Remove">&times;</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  favoritesListEl.addEventListener('click', (e) => {
+    const selectBtn = e.target.closest('.favorite-select');
+    if (selectBtn) { selectFavorite(parseInt(selectBtn.dataset.index, 10)); return; }
+    const reorderBtn = e.target.closest('.fav-reorder-btn');
+    if (reorderBtn && !reorderBtn.disabled) { moveFavorite(parseInt(reorderBtn.dataset.index, 10), parseInt(reorderBtn.dataset.dir, 10)); return; }
+    const deleteBtn = e.target.closest('.fav-delete-btn');
+    if (deleteBtn) { deleteFavorite(parseInt(deleteBtn.dataset.index, 10)); return; }
+  });
+
+  favToggleBtn.addEventListener('click', toggleFavoriteCurrent);
+
+  function closeAllHeaderPopups() {
+    settingsPopup.hidden = true;
+    locationPopup.hidden = true;
+  }
+
+  locationBtn.addEventListener('click', () => {
+    const wasHidden = locationPopup.hidden;
+    closeAllHeaderPopups();
+    if (wasHidden) {
+      renderFavoritesUI();
+      locationPopup.hidden = false;
+    }
+  });
+  locationCloseBtn.addEventListener('click', () => { locationPopup.hidden = true; });
 
   // ---- Settings: dark mode ----
   const DARK_MODE_KEY = 'tideAndTime.darkMode';
@@ -412,13 +600,21 @@
   applyDarkMode();
 
   settingsBtn.addEventListener('click', () => {
-    settingsPopup.hidden = !settingsPopup.hidden;
+    const wasHidden = settingsPopup.hidden;
+    closeAllHeaderPopups();
+    if (wasHidden) settingsPopup.hidden = false;
   });
   settingsCloseBtn.addEventListener('click', () => { settingsPopup.hidden = true; });
   darkModeSwitch.addEventListener('click', () => setDarkMode(!darkMode));
+  // Capture phase, not bubble: favorites actions (reorder/delete) rebuild the list's innerHTML
+  // synchronously, which detaches the clicked element before a bubble-phase listener would see
+  // it — closest('.app-header') on a detached node returns null, wrongly reading as "outside".
+  // Capture runs on the way down, before that mutation happens, so the DOM is still intact.
   document.addEventListener('click', (e) => {
-    if (!settingsPopup.hidden && !e.target.closest('.app-header')) settingsPopup.hidden = true;
-  });
+    if (e.target.closest('.app-header')) return;
+    if (!settingsPopup.hidden) settingsPopup.hidden = true;
+    if (!locationPopup.hidden) locationPopup.hidden = true;
+  }, true);
 
   // Center an element within its own horizontally-scrolling container without
   // touching the page's vertical scroll (unlike scrollIntoView, which can drag
@@ -437,6 +633,7 @@
     weatherData = null;
     marineData = null;
     cityInput.value = '';
+    updateLocationBtnLabel();
     showStatus('Search a spot or use your location to see fishing conditions — past week through the next two.');
   });
 
@@ -615,6 +812,7 @@
         btn.addEventListener('click', () => {
           resultsEl.classList.remove('show');
           cityInput.value = m.name;
+          locationPopup.hidden = true;
           loadLocation(m.latitude, m.longitude, m.name);
         });
         resultsEl.appendChild(btn);
@@ -627,6 +825,7 @@
   locateBtn.addEventListener('click', () => {
     if (!navigator.geolocation) { showStatus("Your browser doesn't support location. Try searching instead."); return; }
     showStatus('Finding your location…');
+    locationPopup.hidden = true;
     navigator.geolocation.getCurrentPosition(
       (pos) => loadLocation(pos.coords.latitude, pos.coords.longitude, 'Your location'),
       () => showStatus("Couldn't get your location. Try searching for a spot instead.")
@@ -670,6 +869,7 @@
 
   async function loadLocation(lat, lon, name) {
     lastCoords = { lat, lon, name };
+    updateLocationBtnLabel();
     showStatus('Loading conditions…');
 
     const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +

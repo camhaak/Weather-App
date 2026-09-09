@@ -287,10 +287,14 @@
     showStatus('Search a spot or use your location to see fishing conditions — past week through the next two.');
   });
 
-  // Delegated so it keeps working across every re-render of the sun/moon chart, not just the first.
+  // Delegated so these keep working across every re-render of the sun/moon chart, not just the first.
   contentEl.addEventListener('click', (e) => {
     if (e.target.closest('#sunMoonChartWrap')) handleSunMoonChartClick(e);
   });
+  contentEl.addEventListener('pointerdown', handleSunMoonPointerDown);
+  contentEl.addEventListener('pointermove', handleSunMoonPointerMove);
+  contentEl.addEventListener('pointerup', handleSunMoonPointerUp);
+  contentEl.addEventListener('pointercancel', handleSunMoonPointerUp);
 
   let unit = 'celsius';
   let lastCoords = null;
@@ -300,8 +304,9 @@
   let selectedDateStr = null;
   let trendRange = '1'; // '1' | '3' | '7'
   let sunMoonRange = '1'; // '1' | '3' | '7'
-  let sunMoonCursorTime = null; // Date the user clicked on the sun/moon chart, or null to track "now"
-  let sunMoonChartMeta = null; // { wStartMs, pph } from the most recent chart build, for click -> time math
+  let sunMoonCursorTime = null; // Date the user clicked/dragged on the sun/moon chart, or null to track "now"
+  let sunMoonChartMeta = null; // { wStartMs, wEndMs, pph } from the most recent chart build, for pointer -> time math
+  let draggingSunMoonCursor = false;
 
   // ---- Weather code -> description + glyph ----
   function describeCode(code) {
@@ -792,7 +797,7 @@
 
   function sunMoonCaption(range) {
     const zoomNote = range === '1' ? 'Zoomed in for hourly detail.' : range === '3' ? 'Zoomed to a multi-day view.' : 'Zoomed out for a broad overview.';
-    return `${zoomNote} Scroll to explore the full forecast, or tap the chart to move the cursor and inspect any time above. Taller teal bands are major bite windows, shorter grey-blue bands are minor ones — how vivid a band is reflects its estimated effectiveness (moon phase, distance from Earth & pressure trend), which shifts day to day.`;
+    return `${zoomNote} Scroll to explore the full forecast. Tap the chart to move the cursor, or press and drag the bar to scrub through time — the key above updates as you go. Taller teal bands are major bite windows, shorter grey-blue bands are minor ones — how vivid a band is reflects its estimated effectiveness (moon phase, distance from Earth & pressure trend), which shifts day to day.`;
   }
 
   // ---- Estimated bite-window "effectiveness" ----
@@ -904,12 +909,16 @@
       dayLabels += `<text x="${dayStartX + 4}" y="${axisY}" text-anchor="start" font-size="11" fill="${isToday ? '#4C9F94' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${isToday ? '600' : '400'}">${label}</text>`;
     });
 
-    // Interactive cursor: defaults to "now" until the user clicks the chart to pin it elsewhere.
+    // Interactive cursor: defaults to "now" until the user clicks/drags the chart to pin it elsewhere.
     const cursorTime = sunMoonCursorTime || new Date(weatherData.current.time);
     let cursorLine = '';
     if (cursorTime >= wStart && cursorTime <= wEnd) {
       const x = xForTime(cursorTime.getTime());
-      cursorLine = `<line id="sunMoonCursorLine" x1="${x}" x2="${x}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="#1C2541" stroke-width="2" stroke-linecap="round"/><circle cx="${x}" cy="${plotTop - 6}" r="4" fill="#1C2541"/>`;
+      cursorLine = `
+        <line id="sunMoonCursorLine" x1="${x}" x2="${x}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="#1C2541" stroke-width="2" stroke-linecap="round"/>
+        <circle id="sunMoonCursorDot" cx="${x}" cy="${plotTop - 6}" r="4" fill="#1C2541"/>
+        <rect id="sunMoonCursorHandle" x="${x - 12}" y="${plotTop - 14}" width="24" height="${plotH + 28}" fill="transparent" style="cursor:grab; touch-action:none;"/>
+      `;
     }
 
     const horizonLine = `<line x1="0" x2="${W}" y1="${zeroY}" y2="${zeroY}" stroke="#C9C2AE" stroke-width="1" stroke-dasharray="3,3"/>`;
@@ -922,7 +931,7 @@
       ${cursorLine}${eventMarks}${dayLabels}
     </svg>`;
 
-    sunMoonChartMeta = { wStartMs: wStart.getTime(), pph };
+    sunMoonChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph };
     return svg;
   }
 
@@ -959,13 +968,19 @@
   }
 
   function updateSunMoonCursor(time) {
+    if (sunMoonChartMeta) {
+      const clampedMs = Math.min(sunMoonChartMeta.wEndMs, Math.max(sunMoonChartMeta.wStartMs, time.getTime()));
+      time = new Date(clampedMs);
+    }
     sunMoonCursorTime = time;
     if (sunMoonChartMeta) {
-      const line = document.getElementById('sunMoonCursorLine');
       const x = ((time - sunMoonChartMeta.wStartMs) / 3600000) * sunMoonChartMeta.pph;
+      const line = document.getElementById('sunMoonCursorLine');
+      const dot = document.getElementById('sunMoonCursorDot');
+      const handle = document.getElementById('sunMoonCursorHandle');
       if (line) { line.setAttribute('x1', x); line.setAttribute('x2', x); }
-      const dot = line && line.nextElementSibling;
-      if (dot && dot.tagName === 'circle') dot.setAttribute('cx', x);
+      if (dot) dot.setAttribute('cx', x);
+      if (handle) handle.setAttribute('x', x - 12);
     }
     const infoEl = document.getElementById('sunMoonCursorInfo');
     if (infoEl) infoEl.innerHTML = sunMoonCursorInfoHtml(time);
@@ -1010,15 +1025,43 @@
     wrap.scrollLeft = Math.max(0, x - wrap.clientWidth / 2);
   }
 
-  function handleSunMoonChartClick(e) {
+  function sunMoonTimeFromClientX(clientX) {
     const wrap = document.getElementById('sunMoonChartWrap');
     const svgEl = wrap && wrap.querySelector('svg');
-    if (!svgEl || !sunMoonChartMeta) return;
+    if (!svgEl || !sunMoonChartMeta) return null;
     const rect = svgEl.getBoundingClientRect();
     const scale = svgEl.viewBox.baseVal.width / rect.width;
-    const dataX = (e.clientX - rect.left) * scale;
-    const clickTimeMs = sunMoonChartMeta.wStartMs + (dataX / sunMoonChartMeta.pph) * 3600000;
-    updateSunMoonCursor(new Date(clickTimeMs));
+    const dataX = (clientX - rect.left) * scale;
+    const ms = sunMoonChartMeta.wStartMs + (dataX / sunMoonChartMeta.pph) * 3600000;
+    return new Date(ms);
+  }
+
+  function handleSunMoonChartClick(e) {
+    if (e.target.id === 'sunMoonCursorHandle') return; // a plain tap-without-drag on the handle is a no-op here
+    const time = sunMoonTimeFromClientX(e.clientX);
+    if (time) updateSunMoonCursor(time);
+  }
+
+  function handleSunMoonPointerDown(e) {
+    if (e.target.id !== 'sunMoonCursorHandle') return;
+    draggingSunMoonCursor = true;
+    try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+    e.target.style.cursor = 'grabbing';
+    const time = sunMoonTimeFromClientX(e.clientX);
+    if (time) updateSunMoonCursor(time);
+    e.preventDefault();
+  }
+
+  function handleSunMoonPointerMove(e) {
+    if (!draggingSunMoonCursor) return;
+    const time = sunMoonTimeFromClientX(e.clientX);
+    if (time) updateSunMoonCursor(time);
+  }
+
+  function handleSunMoonPointerUp(e) {
+    if (!draggingSunMoonCursor) return;
+    draggingSunMoonCursor = false;
+    if (e.target.id === 'sunMoonCursorHandle') e.target.style.cursor = 'grab';
   }
 
   function renderForDate(dateStr) {

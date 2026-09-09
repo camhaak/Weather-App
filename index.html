@@ -14,46 +14,160 @@
     --gold: #E3A857;
     --teal: #4C9F94;
     --slate: #6B7A99;
+
+    /* Surface/border/text tokens — these are what actually flip between light and dark;
+       --navy/--cream/etc above stay fixed brand accents (buttons, selected states). */
+    --bg: var(--cream);
+    --surface: #fff;
+    --surface-alt: #F9F7F2;
+    --surface-alt2: #F0ECE0;
+    --surface-alt2-hover: #E0DACB;
+    --border: #DDD8CC;
+    --border-soft: #E8E3D6;
+    --border-faint: #EEEAE0;
+    --border-faint2: #F0ECE0;
+    --track-bg: #DCE2EC;
+    --today-tint: #F0F7F5;
+    --today-tint-selected: #E4EFEC;
+    --text: var(--navy);
+    --text-muted: var(--slate);
+    /* Buttons/selected-states that use --navy as a fill (not text) route through this instead,
+       since plain navy barely differs from the dark-mode card surface below — this stays navy
+       in light mode but brightens in dark mode so those elements still read as "accented". */
+    --accent-strong: var(--navy);
+  }
+
+  [data-theme="dark"] {
+    --bg: #12172A;
+    --surface: #1B2136;
+    --surface-alt: #212942;
+    --surface-alt2: #262F4A;
+    --surface-alt2-hover: #2E3856;
+    --border: #303B58;
+    --border-soft: #2A3350;
+    --border-faint: #262F49;
+    --border-faint2: #232B44;
+    --track-bg: #29334E;
+    --today-tint: #16332E;
+    --today-tint-selected: #1C3E37;
+    --text: #E9ECF5;
+    --text-muted: #96A2C4;
+    --accent-strong: #3E5285;
   }
 
   * { box-sizing: border-box; }
 
-  body { margin: 0; font-family: 'Work Sans', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
+  body { margin: 0; font-family: 'Work Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
   .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 30px; }
 
-  .search-bar { display: flex; gap: 8px; padding: 20px 20px 0; }
+  .app-header { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 20px 0; }
+  .app-header-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+  .location-btn {
+    display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%;
+    padding: 7px 14px 7px 10px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text); font-family: 'Work Sans', sans-serif; font-size: 14px;
+    cursor: pointer;
+  }
+  .location-btn:hover { background: var(--surface-alt); }
+  .location-btn svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--text-muted); }
+  .location-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .settings-btn {
+    display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+    border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted);
+    cursor: pointer; padding: 0; flex: 0 0 auto;
+  }
+  .settings-btn:hover { background: var(--surface-alt); }
+  .settings-btn svg { width: 18px; height: 18px; }
+
+  .settings-popup {
+    position: absolute; top: 44px; right: 20px; width: 264px; z-index: 50;
+    background: var(--surface); border: 1px solid var(--border-faint); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(28,37,65,0.15); padding: 14px 16px;
+  }
+  .settings-popup[hidden] { display: none; }
+  .settings-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--text); }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13.5px; color: var(--text); }
+
+  .switch { width: 42px; height: 24px; border-radius: 12px; background: var(--surface-alt2); border: none; position: relative; cursor: pointer; padding: 0; flex: 0 0 auto; transition: background 0.15s ease; }
+  .switch .switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+  .switch.on { background: var(--teal); }
+  .switch.on .switch-knob { left: 20px; }
+
+  .settings-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-faint); }
+  .settings-group:first-of-type { margin-top: 14px; }
+  .settings-label { margin: 0 0 6px; font-size: 12.5px; color: var(--text-muted); }
+  .settings-toggle { display: flex; gap: 3px; background: var(--surface-alt2); border-radius: 20px; padding: 3px; }
+  .settings-toggle button {
+    flex: 1; font-family: 'Work Sans', sans-serif; font-size: 12.5px; font-weight: 500; padding: 5px 6px;
+    border: none; border-radius: 16px; background: none; color: var(--text-muted); cursor: pointer;
+  }
+  .settings-toggle button.active { background: var(--accent-strong); color: var(--cream); }
+
+  .location-popup {
+    position: absolute; top: 44px; left: 20px; right: 20px; z-index: 50;
+    background: var(--surface); border: 1px solid var(--border-faint); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(28,37,65,0.15); padding: 16px; max-height: 75vh; overflow-y: auto;
+  }
+  .location-popup[hidden] { display: none; }
+
+  .search-bar { display: flex; gap: 8px; }
 
   .search-bar input {
     flex: 1; font-family: 'Work Sans', sans-serif; font-size: 16px; padding: 12px 14px;
-    border: 1.5px solid #DDD8CC; border-radius: 10px; background: #fff; color: var(--navy); outline: none;
+    border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); outline: none;
   }
   .search-bar input:focus { border-color: var(--slate); }
 
   .search-bar button {
     font-family: 'Work Sans', sans-serif; font-weight: 500; font-size: 15px; padding: 12px 18px;
-    border: none; border-radius: 10px; background: var(--navy); color: var(--cream); cursor: pointer;
+    border: none; border-radius: 10px; background: var(--accent-strong); color: var(--cream); cursor: pointer;
   }
 
-  .locate-row { padding: 10px 20px 0; display: flex; justify-content: space-between; align-items: center; }
-  .locate-left { display: flex; align-items: center; gap: 14px; }
+  .locate-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
-  .locate-link { font-size: 14px; color: var(--slate); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+  .locate-link { font-size: 14px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
 
-  .unit-toggle { font-size: 14px; color: var(--slate); background: none; border: 1px solid #DDD8CC; border-radius: 20px; padding: 4px 12px; cursor: pointer; }
-
-  .results { margin: 8px 20px 0; background: #fff; border: 1.5px solid #DDD8CC; border-radius: 10px; overflow: hidden; display: none; }
+  .results { margin: 8px 0 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; display: none; }
   .results.show { display: block; }
-  .results button { display: block; width: 100%; text-align: left; padding: 12px 14px; background: none; border: none; border-bottom: 1px solid #EEEAE0; font-family: 'Work Sans', sans-serif; font-size: 15px; color: var(--navy); cursor: pointer; }
+  .results button { display: block; width: 100%; text-align: left; padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--border-faint); font-family: 'Work Sans', sans-serif; font-size: 15px; color: var(--text); cursor: pointer; }
   .results button:last-child { border-bottom: none; }
-  .results button:hover { background: #F9F7F2; }
+  .results button:hover { background: var(--surface-alt); }
+
+  .favorites-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-faint); }
+  .favorites-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .fav-star-btn {
+    font-family: 'Work Sans', sans-serif; font-size: 12.5px; color: var(--text-muted); background: var(--surface-alt2);
+    border: none; border-radius: 14px; padding: 5px 10px; cursor: pointer; white-space: nowrap;
+  }
+  .fav-star-btn.saved { color: var(--gold); }
+  .favorites-empty { font-size: 12.5px; color: var(--text-muted); padding: 4px 0; }
+  .favorite-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; }
+  .favorite-select {
+    flex: 1; min-width: 0; text-align: left; font-family: 'Work Sans', sans-serif; font-size: 14px; color: var(--text);
+    background: none; border: none; padding: 9px 8px; border-radius: 8px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .favorite-select:hover { background: var(--surface-alt); }
+  .favorite-select.current { color: var(--teal); font-weight: 500; }
+  .favorite-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+  .fav-reorder-btn, .fav-delete-btn {
+    display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+    border: none; background: none; color: var(--text-muted); font-size: 14px; border-radius: 6px; cursor: pointer; padding: 0;
+  }
+  .fav-reorder-btn:hover, .fav-delete-btn:hover { background: var(--surface-alt2); }
+  .fav-reorder-btn:disabled { opacity: 0.3; cursor: default; }
+  .fav-reorder-btn:disabled:hover { background: none; }
+  .fav-delete-btn:hover { color: #C4633F; }
 
   /* Sticky day picker */
   #dayPickerWrap {
     position: sticky;
     top: 0;
     z-index: 30;
-    background: var(--cream);
+    background: var(--bg);
     padding-top: 10px;
     box-shadow: 0 4px 10px -6px rgba(28,37,65,0.18);
   }
@@ -63,9 +177,9 @@
 
   .day-chip {
     flex: 0 0 auto; font-family: 'Work Sans', sans-serif; font-size: 13.5px; padding: 8px 14px;
-    border-radius: 20px; border: 1.5px solid #DDD8CC; background: #fff; color: var(--navy); cursor: pointer; white-space: nowrap;
+    border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap;
   }
-  .day-chip.selected { background: var(--navy); border-color: var(--navy); color: var(--cream); }
+  .day-chip.selected { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--cream); }
   .day-chip.is-today:not(.selected) { border-color: var(--teal); color: var(--teal); font-weight: 500; }
 
   /* Hero */
@@ -88,100 +202,102 @@
   .hero-condition { font-size: 16px; margin: 4px 0 0; }
   .hero-meta { margin-top: 14px; display: flex; justify-content: center; gap: 22px; font-size: 13px; opacity: 0.85; }
 
-  .panel { margin: 20px 20px 0; background: #fff; border-radius: 16px; padding: 18px 20px; border: 1.5px solid #E8E3D6; }
-  .panel-title { font-size: 14px; color: var(--slate); margin: 0 0 14px; }
-  .panel-title .sub { font-size: 12px; color: var(--slate); font-weight: 400; }
+  .panel { margin: 20px 20px 0; background: var(--surface); border-radius: 16px; padding: 18px 20px; border: 1.5px solid var(--border-soft); }
+  .panel-title { font-size: 14px; color: var(--text-muted); margin: 0 0 14px; }
+  .panel-title .sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
 
   .cond-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .cond-item .label { font-size: 12.5px; color: var(--slate); margin-bottom: 4px; }
+  .cond-item .label { font-size: 12.5px; color: var(--text-muted); margin-bottom: 4px; }
   .cond-item .value { font-size: 20px; font-weight: 500; display: flex; align-items: baseline; gap: 6px; }
-  .cond-item .value .unit { font-size: 13px; color: var(--slate); font-weight: 400; }
+  .cond-item .value .unit { font-size: 13px; color: var(--text-muted); font-weight: 400; }
   .trend-arrow { font-size: 15px; }
   .trend-rising { color: var(--teal); }
   .trend-falling { color: #C4633F; }
-  .trend-steady { color: var(--slate); }
+  .trend-steady { color: var(--text-muted); }
 
   .sunmoon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .sunmoon-col { display: flex; align-items: center; gap: 12px; }
   .sunmoon-col svg { width: 30px; height: 30px; flex: 0 0 auto; }
   .sunmoon-col .lines .t1 { font-size: 15px; font-weight: 500; }
-  .sunmoon-col .lines .t2 { font-size: 12.5px; color: var(--slate); }
-  .moon-name { font-size: 13px; color: var(--slate); margin-top: 12px; text-align: center; }
+  .sunmoon-col .lines .t2 { font-size: 12.5px; color: var(--text-muted); }
+  .moon-name { font-size: 13px; color: var(--text-muted); margin-top: 12px; text-align: center; }
 
-  .timeline-track { position: relative; height: 16px; border-radius: 8px; margin: 4px 2px 6px; background: #DCE2EC; overflow: hidden; }
+  .timeline-track { position: relative; height: 16px; border-radius: 8px; margin: 4px 2px 6px; background: var(--track-bg); overflow: hidden; }
   .tl-block { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
   .tl-major { background: var(--teal); }
   .tl-minor { background: #A9CFC8; }
-  .tl-now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--navy); }
-  .tl-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--slate); margin: 0 2px; }
+  .tl-now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); }
+  .tl-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin: 0 2px; }
 
   .solunar-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 13px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--navy); }
+  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--text); }
   .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
-  .solunar-list { margin-top: 10px; font-size: 13.5px; color: var(--navy); line-height: 1.7; }
-  .solunar-list .kind { color: var(--slate); }
+  .solunar-list { margin-top: 10px; font-size: 13.5px; color: var(--text); line-height: 1.7; }
+  .solunar-list .kind { color: var(--text-muted); }
 
-  .section-label { font-size: 14px; color: var(--slate); margin: 26px 20px 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .section-label { font-size: 14px; color: var(--text-muted); margin: 26px 20px 10px; display: flex; justify-content: space-between; align-items: baseline; }
 
   .hourly-strip { display: flex; gap: 18px; overflow-x: auto; padding: 0 20px 4px; scrollbar-width: none; }
   .hourly-strip::-webkit-scrollbar { display: none; }
   .hour-item { flex: 0 0 auto; text-align: center; min-width: 42px; }
   .hour-item.is-now .time { color: var(--teal); font-weight: 600; }
-  .hour-item .time { font-size: 13px; color: var(--slate); margin-bottom: 8px; }
+  .hour-item .time { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
   .hour-item svg { width: 22px; height: 22px; margin-bottom: 8px; }
   .hour-item .temp { font-size: 15px; font-weight: 500; }
 
   .daily-list { margin: 6px 20px 0; }
-  .daily-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #E5E1D6; gap: 12px; cursor: pointer; }
+  .daily-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-soft); gap: 12px; cursor: pointer; }
   .daily-row:last-child { border-bottom: none; }
   .daily-row .day { width: 84px; font-size: 15px; }
   .daily-row svg { width: 20px; height: 20px; flex: 0 0 auto; }
-  .daily-row .cond { flex: 1; font-size: 14px; color: var(--slate); }
+  .daily-row .cond { flex: 1; font-size: 14px; color: var(--text-muted); }
   .daily-row .range { font-size: 15px; text-align: right; white-space: nowrap; }
-  .daily-row .range .lo { color: var(--slate); }
+  .daily-row .range .lo { color: var(--text-muted); }
 
   /* Compare table */
-  .compare-wrap { display: flex; margin: 6px 20px 0; background: #fff; border-radius: 16px; border: 1.5px solid #E8E3D6; overflow: hidden; }
-  .compare-labels { flex: 0 0 auto; width: 92px; border-right: 1.5px solid #E8E3D6; }
+  .compare-wrap { display: flex; margin: 6px 20px 0; background: var(--surface); border-radius: 16px; border: 1.5px solid var(--border-soft); overflow: hidden; }
+  .compare-labels { flex: 0 0 auto; width: 92px; border-right: 1.5px solid var(--border-soft); }
   .compare-scroll { flex: 1; overflow-x: auto; scrollbar-width: none; }
   .compare-scroll::-webkit-scrollbar { display: none; }
   .compare-cols { display: flex; }
 
   .compare-row-label {
-    height: 40px; display: flex; align-items: center; padding: 0 10px; font-size: 11.5px; color: var(--slate);
-    border-bottom: 1px solid #F0ECE0;
+    height: 40px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    padding: 0 10px; font-size: 11.5px; color: var(--text-muted); line-height: 1.3;
+    border-bottom: 1px solid var(--border-faint2);
   }
-  .compare-row-label:first-child { font-size: 11px; color: var(--slate); }
+  .compare-row-label:first-child { font-size: 11px; color: var(--text-muted); }
   .compare-row-label:last-child { border-bottom: none; }
+  .compare-row-label .row-unit { font-size: 9.5px; opacity: 0.75; }
 
-  .compare-col { flex: 0 0 66px; border-right: 1px solid #F0ECE0; cursor: pointer; }
+  .compare-col { flex: 0 0 66px; border-right: 1px solid var(--border-faint2); cursor: pointer; }
   .compare-col:last-child { border-right: none; }
-  .compare-col.selected { background: #F5F3EE; }
-  .compare-col.is-today { background: #F0F7F5; }
-  .compare-col.selected.is-today { background: #E4EFEC; }
+  .compare-col.selected { background: var(--surface-alt); }
+  .compare-col.is-today { background: var(--today-tint); }
+  .compare-col.selected.is-today { background: var(--today-tint-selected); }
 
   .compare-cell {
     height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-size: 12px; color: var(--navy); border-bottom: 1px solid #F0ECE0; text-align: center; line-height: 1.25; gap: 2px;
+    font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border-faint2); text-align: center; line-height: 1.25; gap: 2px;
   }
   .compare-cell:last-child { border-bottom: none; }
   .compare-cell svg { width: 16px; height: 16px; }
   .compare-cell.date-cell { font-weight: 500; font-size: 12px; }
-  .compare-cell .sub { font-size: 10px; color: var(--slate); }
+  .compare-cell .sub { font-size: 10px; color: var(--text-muted); }
 
   /* Trend chart */
   .trend-panel { position: relative; }
   .trend-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; }
   .trend-header .panel-title { margin: 0; }
-  .trend-toggle { display: flex; gap: 3px; background: #F0ECE0; border-radius: 20px; padding: 3px; flex: 0 0 auto; }
+  .trend-toggle { display: flex; gap: 3px; background: var(--surface-alt2); border-radius: 20px; padding: 3px; flex: 0 0 auto; }
   .trend-toggle button {
     font-family: 'Work Sans', sans-serif; font-size: 12.5px; font-weight: 500; padding: 5px 11px;
-    border: none; border-radius: 16px; background: none; color: var(--slate); cursor: pointer;
+    border: none; border-radius: 16px; background: none; color: var(--text-muted); cursor: pointer;
   }
-  .trend-toggle button.active { background: var(--navy); color: var(--cream); }
+  .trend-toggle button.active { background: var(--accent-strong); color: var(--cream); }
   .trend-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
   .trend-dot { cursor: pointer; }
-  .trend-caption { font-size: 12.5px; color: var(--slate); margin: 10px 0 0; text-align: center; }
+  .trend-caption { font-size: 12.5px; color: var(--text-muted); margin: 10px 0 0; text-align: center; }
 
   /* Sun, moon & bite chart */
   .sunmoon-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; margin-top: 14px; }
@@ -191,27 +307,27 @@
   .info-btn {
     display: inline-flex; align-items: center; justify-content: center;
     width: 17px; height: 17px; margin-left: 6px; border-radius: 50%; border: none;
-    background: #EEEAE0; color: var(--slate); font-size: 11px; font-weight: 700;
+    background: var(--surface-alt2); color: var(--text-muted); font-size: 11px; font-weight: 700;
     font-style: italic; font-family: Georgia, serif; cursor: pointer; vertical-align: middle; padding: 0;
   }
-  .info-btn:hover { background: #E0DACB; }
+  .info-btn:hover { background: var(--surface-alt2-hover); }
 
   .sunmoon-info-popup {
     position: absolute; top: 46px; right: 20px; left: 20px; z-index: 20;
-    background: #fff; border: 1px solid #EEEAE0; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border-faint); border-radius: 12px;
     box-shadow: 0 8px 24px rgba(28,37,65,0.15);
-    padding: 16px 18px; font-size: 12.5px; color: var(--navy); line-height: 1.55;
+    padding: 16px 18px; font-size: 12.5px; color: var(--text); line-height: 1.55;
   }
   .sunmoon-info-popup[hidden] { display: none; }
   .sunmoon-info-popup p { margin: 0 0 8px; }
   .sunmoon-info-popup p:last-child { margin-bottom: 0; }
   .info-popup-close {
     position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%;
-    border: none; background: none; color: var(--slate); font-size: 16px; line-height: 1; cursor: pointer;
+    border: none; background: none; color: var(--text-muted); font-size: 16px; line-height: 1; cursor: pointer;
   }
-  .info-popup-close:hover { background: #F0ECE0; }
+  .info-popup-close:hover { background: var(--surface-alt2); }
 
-  .sunmoon-cursor-info { margin-bottom: 14px; padding: 10px 14px; background: #F9F7F2; border-radius: 12px; border: 1px solid #EEEAE0; font-size: 12.5px; color: var(--navy); }
+  .sunmoon-cursor-info { margin-bottom: 14px; padding: 10px 14px; background: var(--surface-alt); border-radius: 12px; border: 1px solid var(--border-faint); font-size: 12.5px; color: var(--text); }
   .cursor-time { font-weight: 600; margin-bottom: 6px; }
   .cursor-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
   .cursor-icon { display: flex; flex: 0 0 auto; width: 26px; height: 26px; }
@@ -222,10 +338,10 @@
   .cursor-row.cursor-bite-minor { color: #5B6A86; font-weight: 500; }
   .cursor-row.cursor-bite-minor .cursor-dot { background: #8C9BB5; }
 
-  .status { text-align: center; padding: 60px 20px; color: var(--slate); font-size: 15px; }
+  .status { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 15px; }
   .hidden { display: none !important; }
-  .note { font-size: 12.5px; color: var(--slate); margin-top: 12px; }
-  .coverage-note { font-size: 12.5px; color: var(--slate); margin: 14px 20px 0; }
+  .note { font-size: 12.5px; color: var(--text-muted); margin-top: 12px; }
+  .coverage-note { font-size: 12.5px; color: var(--text-muted); margin: 14px 20px 0; }
 
   @media (prefers-reduced-motion: reduce) { .hero { transition: none; } }
 </style>
@@ -234,20 +350,89 @@
 
 <div class="app">
 
-  <div class="search-bar">
-    <input type="text" id="cityInput" placeholder="Search a coastal spot" autocomplete="off">
-    <button id="searchBtn">Search</button>
-  </div>
+  <div class="app-header">
+    <button type="button" class="location-btn" id="locationBtn" aria-label="Location">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 21s-7-6.4-7-11.5A7 7 0 0 1 19 9.5C19 14.6 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/>
+      </svg>
+      <span id="locationBtnLabel">Search location</span>
+    </button>
 
-  <div class="locate-row">
-    <div class="locate-left">
-      <button class="locate-link" id="locateBtn">Use my location</button>
-      <button class="locate-link" id="forgetBtn" style="display:none;">Forget saved spot</button>
+    <div class="app-header-right">
+      <button type="button" class="settings-btn" id="settingsBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <line x1="4" y1="7" x2="20" y2="7"/><circle cx="15" cy="7" r="2.2" fill="var(--surface)"/>
+          <line x1="4" y1="12" x2="20" y2="12"/><circle cx="9" cy="12" r="2.2" fill="var(--surface)"/>
+          <line x1="4" y1="17" x2="20" y2="17"/><circle cx="17" cy="17" r="2.2" fill="var(--surface)"/>
+        </svg>
+      </button>
     </div>
-    <button class="unit-toggle" id="unitToggle">°C</button>
-  </div>
 
-  <div class="results" id="results"></div>
+    <div class="location-popup" id="locationPopup" hidden>
+      <button type="button" class="info-popup-close" id="locationCloseBtn" aria-label="Close">&times;</button>
+      <p class="settings-title">Location</p>
+
+      <div class="search-bar">
+        <input type="text" id="cityInput" placeholder="Search a coastal spot" autocomplete="off">
+        <button id="searchBtn">Search</button>
+      </div>
+      <div class="results" id="results"></div>
+      <div class="locate-left" style="margin-top:10px;">
+        <button class="locate-link" id="locateBtn">Use my location</button>
+        <button class="locate-link" id="forgetBtn" style="display:none;">Forget saved spot</button>
+      </div>
+
+      <div class="favorites-section">
+        <div class="favorites-header">
+          <p class="settings-title" style="margin:0;">Favorites</p>
+          <button type="button" class="fav-star-btn" id="favToggleBtn" style="display:none;">☆ Save this spot</button>
+        </div>
+        <div id="favoritesList"></div>
+      </div>
+    </div>
+
+    <div class="settings-popup" id="settingsPopup" hidden>
+      <button type="button" class="info-popup-close" id="settingsCloseBtn" aria-label="Close">&times;</button>
+      <p class="settings-title">Settings</p>
+      <div class="settings-row">
+        <span>Dark mode</span>
+        <button type="button" class="switch" id="darkModeSwitch" role="switch" aria-checked="false"><span class="switch-knob"></span></button>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Temperature</p>
+        <div class="settings-toggle" data-setting="tempUnit">
+          <button type="button" data-value="celsius">°C</button>
+          <button type="button" data-value="fahrenheit">°F</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Pressure</p>
+        <div class="settings-toggle" data-setting="pressureUnit">
+          <button type="button" data-value="hpa">hPa</button>
+          <button type="button" data-value="inhg">inHg</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Wind speed</p>
+        <div class="settings-toggle" data-setting="windUnit">
+          <button type="button" data-value="kmh">km/h</button>
+          <button type="button" data-value="mph">mph</button>
+          <button type="button" data-value="kn">kt</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Wave height</p>
+        <div class="settings-toggle" data-setting="waveUnit">
+          <button type="button" data-value="m">m</button>
+          <button type="button" data-value="ft">ft</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="dayPickerWrap"></div>
   <div id="content">
@@ -264,10 +449,19 @@
   const searchBtn = document.getElementById('searchBtn');
   const locateBtn = document.getElementById('locateBtn');
   const forgetBtn = document.getElementById('forgetBtn');
-  const unitToggle = document.getElementById('unitToggle');
   const resultsEl = document.getElementById('results');
   const contentEl = document.getElementById('content');
   const dayPickerWrap = document.getElementById('dayPickerWrap');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPopup = document.getElementById('settingsPopup');
+  const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+  const darkModeSwitch = document.getElementById('darkModeSwitch');
+  const locationBtn = document.getElementById('locationBtn');
+  const locationBtnLabel = document.getElementById('locationBtnLabel');
+  const locationPopup = document.getElementById('locationPopup');
+  const locationCloseBtn = document.getElementById('locationCloseBtn');
+  const favToggleBtn = document.getElementById('favToggleBtn');
+  const favoritesListEl = document.getElementById('favoritesList');
 
   const SAVED_LOCATION_KEY = 'tideAndTime.savedLocation';
 
@@ -293,6 +487,207 @@
     forgetBtn.style.display = getSavedLocation() ? '' : 'none';
   }
 
+  function updateLocationBtnLabel() {
+    locationBtnLabel.textContent = (lastCoords && lastCoords.name) ? lastCoords.name : 'Search location';
+  }
+
+  // ---- Favorites: multiple saved spots, quick-switchable, reorderable ----
+  const FAVORITES_KEY = 'tideAndTime.favorites';
+
+  function getFavorites() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY));
+      if (Array.isArray(parsed)) {
+        return parsed.filter(f => f && typeof f.lat === 'number' && typeof f.lon === 'number' && typeof f.name === 'string');
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  let favorites = getFavorites();
+
+  function saveFavoritesList() {
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch (e) {}
+  }
+
+  function sameSpot(a, b) {
+    return !!a && !!b && Math.abs(a.lat - b.lat) < 0.001 && Math.abs(a.lon - b.lon) < 0.001;
+  }
+
+  function isFavorited(loc) {
+    return favorites.some(f => sameSpot(f, loc));
+  }
+
+  function toggleFavoriteCurrent() {
+    if (!lastCoords) return;
+    if (isFavorited(lastCoords)) {
+      favorites = favorites.filter(f => !sameSpot(f, lastCoords));
+    } else {
+      favorites.push({ lat: lastCoords.lat, lon: lastCoords.lon, name: lastCoords.name });
+    }
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
+  function moveFavorite(index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= favorites.length) return;
+    [favorites[index], favorites[target]] = [favorites[target], favorites[index]];
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
+  function deleteFavorite(index) {
+    favorites.splice(index, 1);
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
+  function selectFavorite(index) {
+    const f = favorites[index];
+    if (!f) return;
+    cityInput.value = f.name;
+    locationPopup.hidden = true;
+    loadLocation(f.lat, f.lon, f.name);
+  }
+
+  function renderFavoritesUI() {
+    if (lastCoords) {
+      favToggleBtn.style.display = '';
+      const saved = isFavorited(lastCoords);
+      favToggleBtn.textContent = saved ? '★ Saved' : '☆ Save this spot';
+      favToggleBtn.classList.toggle('saved', saved);
+    } else {
+      favToggleBtn.style.display = 'none';
+    }
+
+    if (favorites.length === 0) {
+      favoritesListEl.innerHTML = '<p class="favorites-empty">No favorites yet — search a spot, then tap "Save this spot".</p>';
+      return;
+    }
+    favoritesListEl.innerHTML = favorites.map((f, i) => {
+      const isCurrent = sameSpot(f, lastCoords);
+      return `
+        <div class="favorite-row">
+          <button type="button" class="favorite-select ${isCurrent ? 'current' : ''}" data-index="${i}">${f.name}</button>
+          <div class="favorite-actions">
+            <button type="button" class="fav-reorder-btn" data-dir="-1" data-index="${i}" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+            <button type="button" class="fav-reorder-btn" data-dir="1" data-index="${i}" aria-label="Move down" ${i === favorites.length - 1 ? 'disabled' : ''}>&darr;</button>
+            <button type="button" class="fav-delete-btn" data-index="${i}" aria-label="Remove">&times;</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  favoritesListEl.addEventListener('click', (e) => {
+    const selectBtn = e.target.closest('.favorite-select');
+    if (selectBtn) { selectFavorite(parseInt(selectBtn.dataset.index, 10)); return; }
+    const reorderBtn = e.target.closest('.fav-reorder-btn');
+    if (reorderBtn && !reorderBtn.disabled) { moveFavorite(parseInt(reorderBtn.dataset.index, 10), parseInt(reorderBtn.dataset.dir, 10)); return; }
+    const deleteBtn = e.target.closest('.fav-delete-btn');
+    if (deleteBtn) { deleteFavorite(parseInt(deleteBtn.dataset.index, 10)); return; }
+  });
+
+  favToggleBtn.addEventListener('click', toggleFavoriteCurrent);
+
+  function closeAllHeaderPopups() {
+    settingsPopup.hidden = true;
+    locationPopup.hidden = true;
+  }
+
+  locationBtn.addEventListener('click', () => {
+    const wasHidden = locationPopup.hidden;
+    closeAllHeaderPopups();
+    if (wasHidden) {
+      renderFavoritesUI();
+      locationPopup.hidden = false;
+    }
+  });
+  locationCloseBtn.addEventListener('click', () => { locationPopup.hidden = true; });
+
+  // ---- Settings: dark mode ----
+  const DARK_MODE_KEY = 'tideAndTime.darkMode';
+
+  function getSavedDarkMode() {
+    try {
+      const raw = localStorage.getItem(DARK_MODE_KEY);
+      if (raw === 'true') return true;
+      if (raw === 'false') return false;
+    } catch (e) {}
+    return null; // no explicit preference saved yet
+  }
+
+  const savedDarkPref = getSavedDarkMode();
+  let darkMode = savedDarkPref === null ? true : savedDarkPref; // dark by default until the user picks otherwise
+
+  function applyDarkMode() {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    if (darkModeSwitch) {
+      darkModeSwitch.classList.toggle('on', darkMode);
+      darkModeSwitch.setAttribute('aria-checked', String(darkMode));
+    }
+  }
+
+  function setDarkMode(value) {
+    darkMode = value;
+    try { localStorage.setItem(DARK_MODE_KEY, String(darkMode)); } catch (e) {}
+    applyDarkMode();
+    // Chart SVGs bake their text/line colors in as JS-generated hex strings (not CSS), so they
+    // need a fresh render to pick up the new theme rather than just a CSS variable flip.
+    if (weatherData && selectedDateStr) renderForDate(selectedDateStr);
+  }
+
+  applyDarkMode();
+
+  settingsBtn.addEventListener('click', () => {
+    const wasHidden = settingsPopup.hidden;
+    closeAllHeaderPopups();
+    if (wasHidden) { updateSettingsToggleUI(); settingsPopup.hidden = false; }
+  });
+  settingsCloseBtn.addEventListener('click', () => { settingsPopup.hidden = true; });
+  darkModeSwitch.addEventListener('click', () => setDarkMode(!darkMode));
+
+  // Literal key strings here (not the *_KEY consts) so this object can be built at script
+  // top-level before those consts — declared later, alongside the units they persist — have
+  // themselves run; referencing them here directly would hit their temporal dead zone.
+  const UNIT_SETTING_VARS = {
+    tempUnit: { key: 'tideAndTime.tempUnit', get: () => unit, set: v => { unit = v; } },
+    pressureUnit: { key: 'tideAndTime.pressureUnit', get: () => pressureUnit, set: v => { pressureUnit = v; } },
+    windUnit: { key: 'tideAndTime.windUnit', get: () => windUnit, set: v => { windUnit = v; } },
+    waveUnit: { key: 'tideAndTime.waveUnit', get: () => waveUnit, set: v => { waveUnit = v; } },
+  };
+
+  function updateSettingsToggleUI() {
+    document.querySelectorAll('.settings-toggle').forEach(group => {
+      const cfg = UNIT_SETTING_VARS[group.dataset.setting];
+      if (!cfg) return;
+      const current = cfg.get();
+      group.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === current));
+    });
+  }
+
+  settingsPopup.addEventListener('click', (e) => {
+    const btn = e.target.closest('.settings-toggle button');
+    if (!btn) return;
+    const group = btn.closest('.settings-toggle');
+    const cfg = UNIT_SETTING_VARS[group.dataset.setting];
+    if (!cfg) return;
+    cfg.set(btn.dataset.value);
+    try { localStorage.setItem(cfg.key, btn.dataset.value); } catch (err) {}
+    updateSettingsToggleUI();
+    if (weatherData) renderForDate(selectedDateStr);
+  });
+  // Capture phase, not bubble: favorites actions (reorder/delete) rebuild the list's innerHTML
+  // synchronously, which detaches the clicked element before a bubble-phase listener would see
+  // it — closest('.app-header') on a detached node returns null, wrongly reading as "outside".
+  // Capture runs on the way down, before that mutation happens, so the DOM is still intact.
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.app-header')) return;
+    if (!settingsPopup.hidden) settingsPopup.hidden = true;
+    if (!locationPopup.hidden) locationPopup.hidden = true;
+  }, true);
+
   // Center an element within its own horizontally-scrolling container without
   // touching the page's vertical scroll (unlike scrollIntoView, which can drag
   // the whole page down to bring an off-screen ancestor into view).
@@ -310,6 +705,7 @@
     weatherData = null;
     marineData = null;
     cityInput.value = '';
+    updateLocationBtnLabel();
     showStatus('Search a spot or use your location to see fishing conditions — past week through the next two.');
   });
 
@@ -334,7 +730,24 @@
   contentEl.addEventListener('pointerup', handleSunMoonPointerUp);
   contentEl.addEventListener('pointercancel', handleSunMoonPointerUp);
 
-  let unit = 'celsius';
+  // Generic "was an explicit choice saved?" reader for enum-style unit preferences.
+  function getSavedPref(key, validValues, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (validValues.includes(raw)) return raw;
+    } catch (e) {}
+    return fallback;
+  }
+
+  const TEMP_UNIT_KEY = 'tideAndTime.tempUnit';
+  const PRESSURE_UNIT_KEY = 'tideAndTime.pressureUnit';
+  const WIND_UNIT_KEY = 'tideAndTime.windUnit';
+  const WAVE_UNIT_KEY = 'tideAndTime.waveUnit';
+
+  let unit = getSavedPref(TEMP_UNIT_KEY, ['celsius', 'fahrenheit'], 'celsius');
+  let pressureUnit = getSavedPref(PRESSURE_UNIT_KEY, ['hpa', 'inhg'], 'hpa');
+  let windUnit = getSavedPref(WIND_UNIT_KEY, ['kmh', 'mph', 'kn'], 'kmh');
+  let waveUnit = getSavedPref(WAVE_UNIT_KEY, ['m', 'ft'], 'm');
   let lastCoords = null;
   let weatherData = null;
   let marineData = null;
@@ -418,6 +831,29 @@
     return Math.round(v) + '°';
   }
 
+  // Underlying data always arrives in hPa/km/h/metres (Open-Meteo's defaults) — these only
+  // affect how it's displayed, never the trend classification or bite-effectiveness math,
+  // which stay in native units regardless of what the user has chosen to see.
+  function fmtPressure(hpa) {
+    if (hpa === null || hpa === undefined || isNaN(hpa)) return '--';
+    return pressureUnit === 'inhg' ? (hpa * 0.0295299831).toFixed(2) : Math.round(hpa).toString();
+  }
+  function pressureUnitLabel() { return pressureUnit === 'inhg' ? 'inHg' : 'hPa'; }
+
+  function fmtWind(kmh) {
+    if (kmh === null || kmh === undefined || isNaN(kmh)) return '--';
+    const v = windUnit === 'mph' ? kmh * 0.6213712 : windUnit === 'kn' ? kmh * 0.5399568 : kmh;
+    return Math.round(v).toString();
+  }
+  function windUnitLabel() { return windUnit === 'mph' ? 'mph' : windUnit === 'kn' ? 'kt' : 'km/h'; }
+
+  function fmtWave(m) {
+    if (m === null || m === undefined || isNaN(m)) return '--';
+    const v = waveUnit === 'ft' ? m * 3.2808399 : m;
+    return v.toFixed(1);
+  }
+  function waveUnitLabel() { return waveUnit === 'ft' ? 'ft' : 'm'; }
+
   function clockLabel(d) {
     if (!d) return '--';
     let h = d.getHours(), m = d.getMinutes();
@@ -426,16 +862,8 @@
     return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
   }
 
-  function shortClock(d) {
-    if (!d) return '--';
-    let h = d.getHours(), m = d.getMinutes();
-    const ap = h >= 12 ? 'p' : 'a';
-    h = h % 12; if (h === 0) h = 12;
-    return `${h}:${m.toString().padStart(2, '0')}${ap}`;
-  }
-
-  // Same as shortClock but spells out am/pm — used on the sun/moon chart, where "9:15a" read
-  // ambiguously next to the chart's other labels.
+  // Compact clock format with am/pm spelled out (e.g. "9:15am") — used anywhere space is tight
+  // (chart axis labels, the compare table) but "9:15a" would read ambiguously.
   function shortClockWords(d) {
     if (!d) return '--';
     let h = d.getHours(), m = d.getMinutes();
@@ -488,6 +916,7 @@
         btn.addEventListener('click', () => {
           resultsEl.classList.remove('show');
           cityInput.value = m.name;
+          locationPopup.hidden = true;
           loadLocation(m.latitude, m.longitude, m.name);
         });
         resultsEl.appendChild(btn);
@@ -500,16 +929,11 @@
   locateBtn.addEventListener('click', () => {
     if (!navigator.geolocation) { showStatus("Your browser doesn't support location. Try searching instead."); return; }
     showStatus('Finding your location…');
+    locationPopup.hidden = true;
     navigator.geolocation.getCurrentPosition(
       (pos) => loadLocation(pos.coords.latitude, pos.coords.longitude, 'Your location'),
       () => showStatus("Couldn't get your location. Try searching for a spot instead.")
     );
-  });
-
-  unitToggle.addEventListener('click', () => {
-    unit = unit === 'celsius' ? 'fahrenheit' : 'celsius';
-    unitToggle.textContent = unit === 'celsius' ? '°C' : '°F';
-    if (weatherData) renderForDate(selectedDateStr);
   });
 
   function showStatus(msg) {
@@ -543,6 +967,7 @@
 
   async function loadLocation(lat, lon, name) {
     lastCoords = { lat, lon, name };
+    updateLocationBtnLabel();
     showStatus('Loading conditions…');
 
     const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
@@ -695,7 +1120,18 @@
     return 'Daily high/low range across the week, centered on the selected day.';
   }
 
+  // Chart SVGs are generated as raw hex strings in JS, so they can't pick up CSS variables —
+  // these are the handful of colors that genuinely need to flip in dark mode (navy text/lines
+  // have poor contrast on a dark panel; white dot outlines need a dark one instead). Saturated
+  // data colors (gold/teal/slate-blue accents) read fine unchanged in both themes.
+  function chartTheme() {
+    return darkMode
+      ? { text: '#E9ECF5', divider: '#333F5C', faintDivider: '#2A3350', dotStroke: '#1B2136', horizon: '#4A5878' }
+      : { text: '#1C2541', divider: '#DDD8CC', faintDivider: '#EEEAE0', dotStroke: '#fff', horizon: '#C9C2AE' };
+  }
+
   function buildTrendSVG(range) {
+    const CT = chartTheme();
     const W = 400, H = 190;
     const padL = 8, padR = 8, plotTop = 14, plotH = 108, axisY = plotTop + plotH + 22;
     const plotW = W - padL - padR;
@@ -729,9 +1165,9 @@
         const isSel = d === selectedDateStr;
         const dIdx = weatherData.daily.time.indexOf(d);
         return `
-          <circle cx="${x}" cy="${yScale(hi[i])}" r="${isSel ? 4 : 3}" fill="#E3A857" stroke="#fff" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: High ${fmtTemp(weatherData.daily.temperature_2m_max[dIdx])}</title></circle>
-          <circle cx="${x}" cy="${yScale(lo[i])}" r="${isSel ? 4 : 3}" fill="#4C9F94" stroke="#fff" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: Low ${fmtTemp(weatherData.daily.temperature_2m_min[dIdx])}</title></circle>
-          ${isSel ? `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#1C2541" stroke-width="1" stroke-dasharray="2,3" opacity="0.3"/>` : ''}
+          <circle cx="${x}" cy="${yScale(hi[i])}" r="${isSel ? 4 : 3}" fill="#E3A857" stroke="${CT.dotStroke}" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: High ${fmtTemp(weatherData.daily.temperature_2m_max[dIdx])}</title></circle>
+          <circle cx="${x}" cy="${yScale(lo[i])}" r="${isSel ? 4 : 3}" fill="#4C9F94" stroke="${CT.dotStroke}" stroke-width="1" data-date="${d}" class="trend-dot"><title>${chipLabel(d, todayStr)}: Low ${fmtTemp(weatherData.daily.temperature_2m_min[dIdx])}</title></circle>
+          ${isSel ? `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.text}" stroke-width="1" stroke-dasharray="2,3" opacity="0.3"/>` : ''}
         `;
       }).join('');
 
@@ -776,7 +1212,7 @@
     const now = new Date(weatherData.current.time).getTime();
     if (now >= wStart && now <= wEnd) {
       const x = xScale(now, wStart, wEnd);
-      nowMarker = `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#1C2541" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"/>`;
+      nowMarker = `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.text}" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"/>`;
     }
 
     let ticks;
@@ -800,7 +1236,7 @@
 
     const dayDividers = range === '3' ? days.slice(1).map(d => {
       const x = xScale(new Date(d + 'T00:00:00').getTime(), wStart, wEnd);
-      return `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#DDD8CC" stroke-width="1"/>`;
+      return `<line x1="${x}" x2="${x}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.divider}" stroke-width="1"/>`;
     }).join('') : '';
 
     const maxPt = pts.reduce((a, b) => (b.v > a.v ? b : a));
@@ -815,7 +1251,7 @@
       </defs>
       ${dayDividers}
       <path d="${areaPts}" fill="url(#trendFill)"/>
-      <path d="${linePts}" fill="none" stroke="#1C2541" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${linePts}" fill="none" stroke="${CT.text}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       ${nowMarker}
       <circle cx="${xScale(maxPt.t, wStart, wEnd)}" cy="${yScale(maxPt.v)}" r="3" fill="#E3A857"/>
       <circle cx="${xScale(minPt.t, wStart, wEnd)}" cy="${yScale(minPt.v)}" r="3" fill="#6B7A99"/>
@@ -887,6 +1323,7 @@
   }
 
   function buildSunMoonChart(range) {
+    const CT = chartTheme();
     const days = weatherData.daily.time; // full fetched range: scrolling never hits an artificial edge
     const wStart = new Date(days[0] + 'T00:00:00');
     const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
@@ -916,7 +1353,7 @@
 
     function eventMark(x, rowY, color, text, bold) {
       return `<line x1="${x}" x2="${x}" y1="${rowY - 9}" y2="${rowY - 4}" stroke="${color}" stroke-width="${bold ? 2 : 1.5}" stroke-linecap="round"/>` +
-        `<text x="${x}" y="${rowY + 7}" text-anchor="middle" font-size="9" fill="${bold ? '#1C2541' : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${bold ? '600' : '400'}">${text}</text>`;
+        `<text x="${x}" y="${rowY + 7}" text-anchor="middle" font-size="9" fill="${bold ? CT.text : '#6B7A99'}" font-family="Work Sans, sans-serif" font-weight="${bold ? '600' : '400'}">${text}</text>`;
     }
 
     // Labels are collected per row first, then rendered left-to-right, dropping the text (but
@@ -992,7 +1429,7 @@
     let dividers = '', dayLabels = '';
     days.forEach((d, i) => {
       const dayStartX = xForTime(new Date(d + 'T00:00:00').getTime());
-      if (i > 0) dividers += `<line x1="${dayStartX}" x2="${dayStartX}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="#DDD8CC" stroke-width="1"/>`;
+      if (i > 0) dividers += `<line x1="${dayStartX}" x2="${dayStartX}" y1="${plotTop}" y2="${plotTop + plotH}" stroke="${CT.divider}" stroke-width="1"/>`;
       const isToday = d === todayStr;
       const [, mo, da] = d.split('-');
       const weekday = isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
@@ -1009,7 +1446,7 @@
       const x = xForTime(cursorTime.getTime());
       const snapColor = sunMoonSnapColor(cursorTime.getTime(), majorTimesMs, minorTimesMs, sunEventTimesMs);
       const isSnapped = snapColor !== null;
-      const cursorColor = snapColor || '#1C2541';
+      const cursorColor = snapColor || CT.text;
       cursorLine = `
         <circle id="sunMoonCursorGlow" cx="${x}" cy="${plotTop - 6}" r="8" fill="${cursorColor}" opacity="${isSnapped ? 0.25 : 0}"/>
         <line id="sunMoonCursorLine" x1="${x}" x2="${x}" y1="${plotTop - 6}" y2="${plotTop + plotH + 6}" stroke="${cursorColor}" stroke-width="${isSnapped ? 2.5 : 2}" stroke-linecap="round"/>
@@ -1018,8 +1455,8 @@
       `;
     }
 
-    const horizonLine = `<line x1="0" x2="${W}" y1="${zeroY}" y2="${zeroY}" stroke="#C9C2AE" stroke-width="1" stroke-dasharray="3,3"/>`;
-    const rowDividers = compact ? '' : `<line x1="0" x2="${W}" y1="${plotBottom + 8}" y2="${plotBottom + 8}" stroke="#EEEAE0" stroke-width="1"/>`;
+    const horizonLine = `<line x1="0" x2="${W}" y1="${zeroY}" y2="${zeroY}" stroke="${CT.horizon}" stroke-width="1" stroke-dasharray="3,3"/>`;
+    const rowDividers = compact ? '' : `<line x1="0" x2="${W}" y1="${plotBottom + 8}" y2="${plotBottom + 8}" stroke="${CT.faintDivider}" stroke-width="1"/>`;
 
     const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
       ${bandsHtml}${dividers}${horizonLine}${rowDividers}
@@ -1101,7 +1538,7 @@
       const x = ((time - sunMoonChartMeta.wStartMs) / 3600000) * sunMoonChartMeta.pph;
       const snapColor = sunMoonSnapColor(time.getTime(), sunMoonChartMeta.majorTimesMs, sunMoonChartMeta.minorTimesMs, sunMoonChartMeta.sunEventTimesMs);
       const isSnapped = snapColor !== null;
-      const cursorColor = snapColor || '#1C2541';
+      const cursorColor = snapColor || chartTheme().text;
       const glow = document.getElementById('sunMoonCursorGlow');
       const line = document.getElementById('sunMoonCursorLine');
       const dot = document.getElementById('sunMoonCursorDot');
@@ -1290,7 +1727,7 @@
       const t = weatherData.hourly.temperature_2m[idx];
       const isNow = m.isToday && hh.split(':')[0] === nowHour;
       const hLabel = (parseInt(hh) % 12 === 0 ? 12 : parseInt(hh) % 12) + (parseInt(hh) < 12 ? 'AM' : 'PM');
-      return `<div class="hour-item ${isNow ? 'is-now' : ''}"><div class="time">${hLabel}</div>${glyphFor(d2.kind, '#1C2541')}<div class="temp">${fmtTemp(t)}</div></div>`;
+      return `<div class="hour-item ${isNow ? 'is-now' : ''}"><div class="time">${hLabel}</div>${glyphFor(d2.kind, chartTheme().text)}<div class="temp">${fmtTemp(t)}</div></div>`;
     }).join('');
 
     const upcoming = [];
@@ -1305,21 +1742,21 @@
 
     const waterTempHtml = m.marineAvailable && m.waterTemp !== null
       ? `<div class="value">${fmtTemp(m.waterTemp)}</div>`
-      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
+      : `<div class="value" style="font-size:14px; color:var(--text-muted); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
     const waveHtml = m.marineAvailable && m.waveHeight !== null
-      ? `<div class="value">${m.waveHeight.toFixed(1)}<span class="unit">m</span></div>`
-      : `<div class="value" style="font-size:14px; color:var(--slate); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
+      ? `<div class="value">${fmtWave(m.waveHeight)}<span class="unit">${waveUnitLabel()}</span></div>`
+      : `<div class="value" style="font-size:14px; color:var(--text-muted); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
 
     const condHtml = `
       <div class="cond-grid">
         <div class="cond-item">
           <div class="label">Pressure</div>
-          <div class="value">${m.pressureNow ? Math.round(m.pressureNow) : '--'}<span class="unit">hPa</span> <span class="trend-arrow ${m.trend.cls}">${m.trend.arrow}</span></div>
+          <div class="value">${fmtPressure(m.pressureNow)}<span class="unit">${pressureUnitLabel()}</span> <span class="trend-arrow ${m.trend.cls}">${m.trend.arrow}</span></div>
           <div class="note" style="margin-top:2px;">${m.trend.label}</div>
         </div>
         <div class="cond-item">
           <div class="label">Wind</div>
-          <div class="value">${m.windAt !== null && m.windAt !== undefined ? Math.round(m.windAt) : '--'}<span class="unit">km/h</span></div>
+          <div class="value">${fmtWind(m.windAt)}<span class="unit">${windUnitLabel()}</span></div>
         </div>
         <div class="cond-item"><div class="label">Water temp</div>${waterTempHtml}</div>
         <div class="cond-item"><div class="label">Wave height</div>${waveHtml}</div>
@@ -1379,18 +1816,18 @@
       if (!dm) return '';
       const isSel = d === selectedDateStr;
       const isTod = d === todayStr;
-      const majors = dm.solunar.majors.slice(0, 2).map(x => shortClock(x.center)).join('<br>') || '--';
+      const majors = dm.solunar.majors.slice(0, 2).map(x => shortClockWords(x.center)).join('<br>') || '--';
       const waterCell = dm.marineAvailable && dm.waterTemp !== null ? fmtTemp(dm.waterTemp) : '—';
-      const waveCell = dm.marineAvailable && dm.waveHeight !== null ? dm.waveHeight.toFixed(1) + 'm' : '—';
+      const waveCell = dm.marineAvailable && dm.waveHeight !== null ? fmtWave(dm.waveHeight) + waveUnitLabel() : '—';
       return `
         <div class="compare-col ${isSel ? 'selected' : ''} ${isTod ? 'is-today' : ''}" data-date="${d}">
           <div class="compare-cell date-cell">${chipLabel(d, todayStr)}</div>
-          <div class="compare-cell">${glyphFor(dm.desc.kind, '#1C2541')}<span class="sub">${fmtTemp(dm.hi)}/${fmtTemp(dm.lo)}</span></div>
-          <div class="compare-cell"><span class="trend-arrow ${dm.trend.cls}">${dm.trend.arrow}</span><span class="sub">${dm.pressureNow ? Math.round(dm.pressureNow) : '--'}</span></div>
-          <div class="compare-cell">${dm.windAt !== null && dm.windAt !== undefined ? Math.round(dm.windAt) : '--'}<span class="sub">km/h</span></div>
+          <div class="compare-cell">${glyphFor(dm.desc.kind, chartTheme().text)}<span class="sub">${fmtTemp(dm.hi)}/${fmtTemp(dm.lo)}</span></div>
+          <div class="compare-cell"><span class="trend-arrow ${dm.trend.cls}">${dm.trend.arrow}</span><span class="sub">${fmtPressure(dm.pressureNow)}</span></div>
+          <div class="compare-cell">${fmtWind(dm.windAt)}<span class="sub">${windUnitLabel()}</span></div>
           <div class="compare-cell">${waterCell}</div>
           <div class="compare-cell">${waveCell}</div>
-          <div class="compare-cell">${moonPhaseGlyph(dm.illum.phase, '#1C2541', '#DCE2EC', 18)}</div>
+          <div class="compare-cell">${moonPhaseGlyph(dm.illum.phase, chartTheme().text, darkMode ? '#2A3350' : '#DCE2EC', 18)}</div>
           <div class="compare-cell" style="font-size:10.5px; line-height:1.3;">${majors}</div>
         </div>
       `;
@@ -1400,11 +1837,11 @@
       <div class="compare-wrap">
         <div class="compare-labels">
           <div class="compare-row-label">&nbsp;</div>
-          <div class="compare-row-label">Hi / Lo</div>
-          <div class="compare-row-label">Pressure</div>
-          <div class="compare-row-label">Wind</div>
-          <div class="compare-row-label">Water</div>
-          <div class="compare-row-label">Waves</div>
+          <div class="compare-row-label">Hi / Lo<span class="row-unit">${unit === 'celsius' ? '°C' : '°F'}</span></div>
+          <div class="compare-row-label">Pressure<span class="row-unit">${pressureUnitLabel()}</span></div>
+          <div class="compare-row-label">Wind<span class="row-unit">${windUnitLabel()}</span></div>
+          <div class="compare-row-label">Water<span class="row-unit">${unit === 'celsius' ? '°C' : '°F'}</span></div>
+          <div class="compare-row-label">Waves<span class="row-unit">${waveUnitLabel()}</span></div>
           <div class="compare-row-label">Moon</div>
           <div class="compare-row-label">Major</div>
         </div>

@@ -327,15 +327,15 @@
   }
   .info-btn:hover { background: var(--surface-alt2-hover); }
 
-  .sunmoon-info-popup {
+  .chart-info-popup {
     position: absolute; top: 46px; right: 20px; left: 20px; z-index: 20;
     background: var(--surface); border: 1px solid var(--border-faint); border-radius: 12px;
     box-shadow: 0 8px 24px rgba(28,37,65,0.15);
     padding: 16px 18px; font-size: 12.5px; color: var(--text); line-height: 1.55;
   }
-  .sunmoon-info-popup[hidden] { display: none; }
-  .sunmoon-info-popup p { margin: 0 0 8px; }
-  .sunmoon-info-popup p:last-child { margin-bottom: 0; }
+  .chart-info-popup[hidden] { display: none; }
+  .chart-info-popup p { margin: 0 0 8px; }
+  .chart-info-popup p:last-child { margin-bottom: 0; }
   .info-popup-close {
     position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%;
     border: none; background: none; color: var(--text-muted); font-size: 16px; line-height: 1; cursor: pointer;
@@ -724,20 +724,27 @@
     showStatus('Search a spot or use your location to see fishing conditions — past week through the next two.');
   });
 
-  // Delegated so these keep working across every re-render of the sun/moon chart, not just the first.
+  // Delegated so these keep working across every re-render of either chart, not just the first.
+  const CHART_INFO_POPUPS = [
+    { btn: 'sunMoonInfoBtn', popup: 'sunMoonInfoPopup', close: 'sunMoonInfoCloseBtn' },
+    { btn: 'trendInfoBtn', popup: 'trendInfoPopup', close: 'trendInfoCloseBtn' },
+  ];
   contentEl.addEventListener('click', (e) => {
-    const infoPopup = document.getElementById('sunMoonInfoPopup');
-    if (e.target.closest('#sunMoonInfoBtn')) {
-      if (infoPopup) infoPopup.hidden = !infoPopup.hidden;
+    const opened = CHART_INFO_POPUPS.find(({ btn }) => e.target.closest('#' + btn));
+    const closed = CHART_INFO_POPUPS.find(({ close }) => e.target.closest('#' + close));
+    if (opened || closed) {
+      // Mutually exclusive: opening one closes the other, same as the settings/location popups.
+      CHART_INFO_POPUPS.forEach(({ popup }) => {
+        const popupEl = document.getElementById(popup);
+        if (!popupEl) return;
+        popupEl.hidden = opened && opened.popup === popup ? !popupEl.hidden : true;
+      });
       return;
     }
-    if (e.target.closest('#sunMoonInfoCloseBtn')) {
-      if (infoPopup) infoPopup.hidden = true;
-      return;
-    }
-    if (infoPopup && !infoPopup.hidden && !e.target.closest('#sunMoonInfoPopup')) {
-      infoPopup.hidden = true;
-    }
+    CHART_INFO_POPUPS.forEach(({ popup }) => {
+      const popupEl = document.getElementById(popup);
+      if (popupEl && !popupEl.hidden && !e.target.closest('#' + popup)) popupEl.hidden = true;
+    });
     if (e.target.closest('#sunMoonTodayBtn')) { jumpSunMoonToToday(); return; }
     if (e.target.closest('#sunMoonChartWrap')) { handleSunMoonChartClick(e); return; }
     if (e.target.closest('#trendTodayBtn')) { jumpTrendToToday(); return; }
@@ -1425,18 +1432,31 @@
     if (e.target.id === 'trendCursorHandle') e.target.style.cursor = 'grab';
   }
 
+  function trendInfoPopupHtml(range) {
+    const zoomNote = range === '1' ? 'Zoomed in for hourly detail.' : range === '3' ? 'Zoomed to a multi-day view.' : 'Zoomed out for a broad overview.';
+    return `
+      <p><strong>${zoomNote}</strong> Scroll to explore the full forecast at any zoom level — the y-axis on the left shows temperature, the ticks below show time of day and date.</p>
+      <p>Tap the chart to move the cursor, or press and drag the bar to scrub through time. The dot rides the line and snaps to the nearest hourly reading, with the exact time, temperature, and conditions shown in the key above.</p>
+      <p>The cursor starts on the current time, stays put when you switch zoom levels, and follows along whenever you change date elsewhere on the page. Use the Today button to jump straight back.</p>
+    `;
+  }
+
   function renderTrendPanel() {
     const svg = buildTrendSVG(trendRange);
     const cursorTime = trendCursorTime || new Date(weatherData.current.time);
     return `
       <div class="panel trend-panel">
         <div class="trend-header">
-          <p class="panel-title">Temperature trend <span class="sub">${unit === 'celsius' ? '°C' : '°F'}</span></p>
+          <p class="panel-title">Temperature trend <span class="sub">${unit === 'celsius' ? '°C' : '°F'}</span><button type="button" class="info-btn" id="trendInfoBtn" aria-label="About this chart">i</button></p>
           <div class="trend-toggle" id="trendToggle">
             <button data-range="1" class="${trendRange === '1' ? 'active' : ''}">1 Day</button>
             <button data-range="3" class="${trendRange === '3' ? 'active' : ''}">3 Day</button>
             <button data-range="7" class="${trendRange === '7' ? 'active' : ''}">Week</button>
           </div>
+        </div>
+        <div class="chart-info-popup" id="trendInfoPopup" hidden>
+          <button type="button" class="info-popup-close" id="trendInfoCloseBtn" aria-label="Close">&times;</button>
+          ${trendInfoPopupHtml(trendRange)}
         </div>
         <div class="chart-cursor-info" id="trendCursorInfo">${trendCursorInfoHtml(cursorTime)}</div>
         <div class="trend-chart-container">
@@ -1736,7 +1756,7 @@
             <button data-range="7" class="${sunMoonRange === '7' ? 'active' : ''}">Week</button>
           </div>
         </div>
-        <div class="sunmoon-info-popup" id="sunMoonInfoPopup" hidden>
+        <div class="chart-info-popup" id="sunMoonInfoPopup" hidden>
           <button type="button" class="info-popup-close" id="sunMoonInfoCloseBtn" aria-label="Close">&times;</button>
           ${sunMoonInfoPopupHtml(sunMoonRange)}
         </div>

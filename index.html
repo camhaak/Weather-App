@@ -236,7 +236,14 @@
   .solunar-list .kind { color: var(--text-muted); }
 
   .section-label { font-size: 14px; color: var(--text-muted); margin: 26px 20px 10px; display: flex; justify-content: space-between; align-items: baseline; }
-  .outlook-label { align-items: center; }
+  .outlook-label { align-items: center; justify-content: flex-start; gap: 8px; }
+  .outlook-label-sep { color: var(--border); }
+  .outlook-toggle { display: flex; gap: 12px; }
+  .outlook-toggle button {
+    font-family: 'Work Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 0;
+    border: none; background: none; color: var(--text-muted); cursor: pointer;
+  }
+  .outlook-toggle button.active { color: var(--accent-strong); font-weight: 600; }
 
   .hourly-strip { display: flex; gap: 18px; overflow-x: auto; padding: 0 20px 4px; scrollbar-width: none; }
   .hourly-strip::-webkit-scrollbar { display: none; }
@@ -2071,10 +2078,11 @@
 
       <p class="section-label outlook-label">
         <span>${outlookView === 'daily' ? 'Through the day' : 'This week at a glance'}</span>
-        <div class="trend-toggle" id="outlookToggle">
+        <span class="outlook-label-sep">|</span>
+        <span class="outlook-toggle" id="outlookToggle">
           <button data-view="daily" class="${outlookView === 'daily' ? 'active' : ''}">Daily</button>
           <button data-view="weekly" class="${outlookView === 'weekly' ? 'active' : ''}">Weekly</button>
-        </div>
+        </span>
       </p>
       ${outlookView === 'daily'
         ? `<div class="hourly-strip">${hourlyHtml}</div>`

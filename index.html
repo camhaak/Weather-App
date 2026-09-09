@@ -2064,21 +2064,25 @@
         <div class="hero-meta"><span>High ${fmtTemp(m.hi)}</span><span>Low ${fmtTemp(m.lo)}</span></div>
       </div>
 
-      ${renderTrendPanel()}
-
       <p class="section-label">Compare days <span class="sub">scroll to see more →</span></p>
       ${compareHtml}
-
-      <div class="panel"><p class="panel-title">Fishing conditions</p>${condHtml}</div>
-      <div class="panel"><p class="panel-title">Sun &amp; moon</p>${sunMoonHtml}</div>
-      <div class="panel"><p class="panel-title">Solunar periods</p>${solunarHtml}</div>
-      ${renderSunMoonPanel()}
 
       <p class="section-label">Through the day</p>
       <div class="hourly-strip">${hourlyHtml}</div>
 
       <p class="section-label">This week at a glance</p>
       <div class="daily-list">${dailyHtml}</div>
+
+      ${renderTrendPanel()}
+
+      <div class="panel"><p class="panel-title">Sun &amp; moon</p>${sunMoonHtml}</div>
+
+      <div class="panel"><p class="panel-title">Fishing conditions</p>${condHtml}</div>
+
+      ${renderSunMoonPanel()}
+
+      <div class="panel"><p class="panel-title">Solunar periods</p>${solunarHtml}</div>
+
       <p class="coverage-note">Weather covers roughly the past week through the next two. Sea temp and wave height cover a shorter window since ocean models forecast less far ahead. Moon and solunar times work for any date.</p>
     `;
 

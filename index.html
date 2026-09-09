@@ -189,8 +189,10 @@
 
   .sunmoon-cursor-info { margin-bottom: 14px; padding: 10px 14px; background: #F9F7F2; border-radius: 12px; border: 1px solid #EEEAE0; font-size: 12.5px; color: var(--navy); }
   .cursor-time { font-weight: 600; margin-bottom: 6px; }
-  .cursor-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
-  .cursor-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--slate); }
+  .cursor-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .cursor-icon { display: flex; flex: 0 0 auto; width: 26px; height: 26px; }
+  .cursor-icon svg { display: block; width: 100%; height: 100%; }
+  .cursor-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; margin: 0 9px; background: var(--slate); }
   .cursor-row.cursor-bite-major { color: #2F7268; font-weight: 600; }
   .cursor-row.cursor-bite-major .cursor-dot { background: #4C9F94; }
   .cursor-row.cursor-bite-minor { color: #5B6A86; font-weight: 500; }
@@ -952,8 +954,35 @@
     return { active: false };
   }
 
+  // Sun icon reflects altitude: full sun in daylight, a sun on the horizon (with a rise/set
+  // chevron) through twilight, and a quiet starfield once it's well below the horizon.
+  function sunStateGlyph(altitudeDeg, rising, size) {
+    const s = size || 26;
+    if (altitudeDeg >= 6) {
+      return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="#E3A857" stroke-width="1.6">
+        <circle cx="12" cy="12" r="4.5"/>
+        <path d="M12 1.5v2.5M12 20v2.5M2 12h2.5M19.5 12H22M5 5l1.8 1.8M17.2 17.2 19 19M5 19l1.8-1.8M17.2 6.8 19 5" stroke-linecap="round"/>
+      </svg>`;
+    }
+    if (altitudeDeg > -6) {
+      const arrow = rising
+        ? '<path d="M9 4.5 12 1.5 15 4.5" stroke="#E3A857" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+        : '<path d="M9 1.5 12 4.5 15 1.5" stroke="#E3A857" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+      return `<svg width="${s}" height="${s}" viewBox="0 0 24 24">
+        <path d="M6.5 15a5.5 5.5 0 0 1 11 0Z" fill="#E3A857"/>
+        <line x1="2" y1="15" x2="22" y2="15" stroke="#6B7A99" stroke-width="1.6" stroke-linecap="round"/>
+        ${arrow}
+      </svg>`;
+    }
+    return `<svg width="${s}" height="${s}" viewBox="0 0 24 24">
+      <line x1="2" y1="15" x2="22" y2="15" stroke="#6B7A99" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="8" cy="7" r="1.1" fill="#6B7A99"/><circle cx="16" cy="5" r="0.9" fill="#6B7A99"/><circle cx="13" cy="10" r="0.7" fill="#6B7A99"/>
+    </svg>`;
+  }
+
   function sunMoonCursorInfoHtml(time) {
     const sunAlt = SunCalc.getPosition(time, lastCoords.lat, lastCoords.lon).altitude * 180 / Math.PI;
+    const sunAltSoon = SunCalc.getPosition(new Date(time.getTime() + 5 * 60000), lastCoords.lat, lastCoords.lon).altitude * 180 / Math.PI;
     const moonAlt = SunCalc.getMoonPosition(time, lastCoords.lat, lastCoords.lon).altitude * 180 / Math.PI;
     const illum = SunCalc.getMoonIllumination(time);
     const bite = biteStatusAt(time);
@@ -965,8 +994,8 @@
 
     return `
       <div class="cursor-time">${chipLabel(fmtDateStr(time), todayStr)} · ${clockLabel(time)}</div>
-      <div class="cursor-row"><span class="cursor-dot" style="background:#E3A857;"></span>Sun ${Math.round(sunAlt)}° (${sunState})</div>
-      <div class="cursor-row"><span class="cursor-dot" style="background:#6B7A99;"></span>Moon ${Math.round(moonAlt)}° (${moonState}) · ${moonPhaseName(illum.phase)}, ${Math.round(illum.fraction * 100)}% lit</div>
+      <div class="cursor-row"><span class="cursor-icon">${sunStateGlyph(sunAlt, sunAltSoon > sunAlt)}</span>Sun ${Math.round(sunAlt)}° (${sunState})</div>
+      <div class="cursor-row"><span class="cursor-icon" style="opacity:${moonAlt > 0 ? 1 : 0.4};">${moonPhaseGlyph(illum.phase, '#F5F3EE', '#1C2541', 26)}</span>Moon ${Math.round(moonAlt)}° (${moonState}) · ${moonPhaseName(illum.phase)}, ${Math.round(illum.fraction * 100)}% lit</div>
       <div class="cursor-row ${biteClass}"><span class="cursor-dot"></span>${biteText}</div>
     `;
   }

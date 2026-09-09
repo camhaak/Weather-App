@@ -83,7 +83,7 @@
   .settings-btn svg { width: 18px; height: 18px; }
 
   .settings-popup {
-    position: absolute; top: 44px; right: 20px; width: 230px; z-index: 50;
+    position: absolute; top: 44px; right: 20px; width: 264px; z-index: 50;
     background: var(--surface); border: 1px solid var(--border-faint); border-radius: 12px;
     box-shadow: 0 8px 24px rgba(28,37,65,0.15); padding: 14px 16px;
   }
@@ -95,6 +95,16 @@
   .switch .switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
   .switch.on { background: var(--teal); }
   .switch.on .switch-knob { left: 20px; }
+
+  .settings-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-faint); }
+  .settings-group:first-of-type { margin-top: 14px; }
+  .settings-label { margin: 0 0 6px; font-size: 12.5px; color: var(--text-muted); }
+  .settings-toggle { display: flex; gap: 3px; background: var(--surface-alt2); border-radius: 20px; padding: 3px; }
+  .settings-toggle button {
+    flex: 1; font-family: 'Work Sans', sans-serif; font-size: 12.5px; font-weight: 500; padding: 5px 6px;
+    border: none; border-radius: 16px; background: none; color: var(--text-muted); cursor: pointer;
+  }
+  .settings-toggle button.active { background: var(--accent-strong); color: var(--cream); }
 
   .location-popup {
     position: absolute; top: 44px; left: 20px; right: 20px; z-index: 50;
@@ -119,8 +129,6 @@
   .locate-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
   .locate-link { font-size: 14px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
-
-  .unit-toggle { font-size: 14px; color: var(--text-muted); background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; cursor: pointer; }
 
   .results { margin: 8px 0 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; display: none; }
   .results.show { display: block; }
@@ -349,7 +357,6 @@
     </button>
 
     <div class="app-header-right">
-      <button class="unit-toggle" id="unitToggle">°C</button>
       <button type="button" class="settings-btn" id="settingsBtn" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
           <line x1="4" y1="7" x2="20" y2="7"/><circle cx="15" cy="7" r="2.2" fill="var(--surface)"/>
@@ -389,6 +396,39 @@
         <span>Dark mode</span>
         <button type="button" class="switch" id="darkModeSwitch" role="switch" aria-checked="false"><span class="switch-knob"></span></button>
       </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Temperature</p>
+        <div class="settings-toggle" data-setting="tempUnit">
+          <button type="button" data-value="celsius">°C</button>
+          <button type="button" data-value="fahrenheit">°F</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Pressure</p>
+        <div class="settings-toggle" data-setting="pressureUnit">
+          <button type="button" data-value="hpa">hPa</button>
+          <button type="button" data-value="inhg">inHg</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Wind speed</p>
+        <div class="settings-toggle" data-setting="windUnit">
+          <button type="button" data-value="kmh">km/h</button>
+          <button type="button" data-value="mph">mph</button>
+          <button type="button" data-value="kn">kt</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <p class="settings-label">Wave height</p>
+        <div class="settings-toggle" data-setting="waveUnit">
+          <button type="button" data-value="m">m</button>
+          <button type="button" data-value="ft">ft</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -407,7 +447,6 @@
   const searchBtn = document.getElementById('searchBtn');
   const locateBtn = document.getElementById('locateBtn');
   const forgetBtn = document.getElementById('forgetBtn');
-  const unitToggle = document.getElementById('unitToggle');
   const resultsEl = document.getElementById('results');
   const contentEl = document.getElementById('content');
   const dayPickerWrap = document.getElementById('dayPickerWrap');
@@ -602,10 +641,41 @@
   settingsBtn.addEventListener('click', () => {
     const wasHidden = settingsPopup.hidden;
     closeAllHeaderPopups();
-    if (wasHidden) settingsPopup.hidden = false;
+    if (wasHidden) { updateSettingsToggleUI(); settingsPopup.hidden = false; }
   });
   settingsCloseBtn.addEventListener('click', () => { settingsPopup.hidden = true; });
   darkModeSwitch.addEventListener('click', () => setDarkMode(!darkMode));
+
+  // Literal key strings here (not the *_KEY consts) so this object can be built at script
+  // top-level before those consts — declared later, alongside the units they persist — have
+  // themselves run; referencing them here directly would hit their temporal dead zone.
+  const UNIT_SETTING_VARS = {
+    tempUnit: { key: 'tideAndTime.tempUnit', get: () => unit, set: v => { unit = v; } },
+    pressureUnit: { key: 'tideAndTime.pressureUnit', get: () => pressureUnit, set: v => { pressureUnit = v; } },
+    windUnit: { key: 'tideAndTime.windUnit', get: () => windUnit, set: v => { windUnit = v; } },
+    waveUnit: { key: 'tideAndTime.waveUnit', get: () => waveUnit, set: v => { waveUnit = v; } },
+  };
+
+  function updateSettingsToggleUI() {
+    document.querySelectorAll('.settings-toggle').forEach(group => {
+      const cfg = UNIT_SETTING_VARS[group.dataset.setting];
+      if (!cfg) return;
+      const current = cfg.get();
+      group.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === current));
+    });
+  }
+
+  settingsPopup.addEventListener('click', (e) => {
+    const btn = e.target.closest('.settings-toggle button');
+    if (!btn) return;
+    const group = btn.closest('.settings-toggle');
+    const cfg = UNIT_SETTING_VARS[group.dataset.setting];
+    if (!cfg) return;
+    cfg.set(btn.dataset.value);
+    try { localStorage.setItem(cfg.key, btn.dataset.value); } catch (err) {}
+    updateSettingsToggleUI();
+    if (weatherData) renderForDate(selectedDateStr);
+  });
   // Capture phase, not bubble: favorites actions (reorder/delete) rebuild the list's innerHTML
   // synchronously, which detaches the clicked element before a bubble-phase listener would see
   // it — closest('.app-header') on a detached node returns null, wrongly reading as "outside".
@@ -658,7 +728,24 @@
   contentEl.addEventListener('pointerup', handleSunMoonPointerUp);
   contentEl.addEventListener('pointercancel', handleSunMoonPointerUp);
 
-  let unit = 'celsius';
+  // Generic "was an explicit choice saved?" reader for enum-style unit preferences.
+  function getSavedPref(key, validValues, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (validValues.includes(raw)) return raw;
+    } catch (e) {}
+    return fallback;
+  }
+
+  const TEMP_UNIT_KEY = 'tideAndTime.tempUnit';
+  const PRESSURE_UNIT_KEY = 'tideAndTime.pressureUnit';
+  const WIND_UNIT_KEY = 'tideAndTime.windUnit';
+  const WAVE_UNIT_KEY = 'tideAndTime.waveUnit';
+
+  let unit = getSavedPref(TEMP_UNIT_KEY, ['celsius', 'fahrenheit'], 'celsius');
+  let pressureUnit = getSavedPref(PRESSURE_UNIT_KEY, ['hpa', 'inhg'], 'hpa');
+  let windUnit = getSavedPref(WIND_UNIT_KEY, ['kmh', 'mph', 'kn'], 'kmh');
+  let waveUnit = getSavedPref(WAVE_UNIT_KEY, ['m', 'ft'], 'm');
   let lastCoords = null;
   let weatherData = null;
   let marineData = null;
@@ -742,6 +829,29 @@
     return Math.round(v) + '°';
   }
 
+  // Underlying data always arrives in hPa/km/h/metres (Open-Meteo's defaults) — these only
+  // affect how it's displayed, never the trend classification or bite-effectiveness math,
+  // which stay in native units regardless of what the user has chosen to see.
+  function fmtPressure(hpa) {
+    if (hpa === null || hpa === undefined || isNaN(hpa)) return '--';
+    return pressureUnit === 'inhg' ? (hpa * 0.0295299831).toFixed(2) : Math.round(hpa).toString();
+  }
+  function pressureUnitLabel() { return pressureUnit === 'inhg' ? 'inHg' : 'hPa'; }
+
+  function fmtWind(kmh) {
+    if (kmh === null || kmh === undefined || isNaN(kmh)) return '--';
+    const v = windUnit === 'mph' ? kmh * 0.6213712 : windUnit === 'kn' ? kmh * 0.5399568 : kmh;
+    return Math.round(v).toString();
+  }
+  function windUnitLabel() { return windUnit === 'mph' ? 'mph' : windUnit === 'kn' ? 'kt' : 'km/h'; }
+
+  function fmtWave(m) {
+    if (m === null || m === undefined || isNaN(m)) return '--';
+    const v = waveUnit === 'ft' ? m * 3.2808399 : m;
+    return v.toFixed(1);
+  }
+  function waveUnitLabel() { return waveUnit === 'ft' ? 'ft' : 'm'; }
+
   function clockLabel(d) {
     if (!d) return '--';
     let h = d.getHours(), m = d.getMinutes();
@@ -750,16 +860,8 @@
     return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
   }
 
-  function shortClock(d) {
-    if (!d) return '--';
-    let h = d.getHours(), m = d.getMinutes();
-    const ap = h >= 12 ? 'p' : 'a';
-    h = h % 12; if (h === 0) h = 12;
-    return `${h}:${m.toString().padStart(2, '0')}${ap}`;
-  }
-
-  // Same as shortClock but spells out am/pm — used on the sun/moon chart, where "9:15a" read
-  // ambiguously next to the chart's other labels.
+  // Compact clock format with am/pm spelled out (e.g. "9:15am") — used anywhere space is tight
+  // (chart axis labels, the compare table) but "9:15a" would read ambiguously.
   function shortClockWords(d) {
     if (!d) return '--';
     let h = d.getHours(), m = d.getMinutes();
@@ -830,12 +932,6 @@
       (pos) => loadLocation(pos.coords.latitude, pos.coords.longitude, 'Your location'),
       () => showStatus("Couldn't get your location. Try searching for a spot instead.")
     );
-  });
-
-  unitToggle.addEventListener('click', () => {
-    unit = unit === 'celsius' ? 'fahrenheit' : 'celsius';
-    unitToggle.textContent = unit === 'celsius' ? '°C' : '°F';
-    if (weatherData) renderForDate(selectedDateStr);
   });
 
   function showStatus(msg) {
@@ -1646,19 +1742,19 @@
       ? `<div class="value">${fmtTemp(m.waterTemp)}</div>`
       : `<div class="value" style="font-size:14px; color:var(--text-muted); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
     const waveHtml = m.marineAvailable && m.waveHeight !== null
-      ? `<div class="value">${m.waveHeight.toFixed(1)}<span class="unit">m</span></div>`
+      ? `<div class="value">${fmtWave(m.waveHeight)}<span class="unit">${waveUnitLabel()}</span></div>`
       : `<div class="value" style="font-size:14px; color:var(--text-muted); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
 
     const condHtml = `
       <div class="cond-grid">
         <div class="cond-item">
           <div class="label">Pressure</div>
-          <div class="value">${m.pressureNow ? Math.round(m.pressureNow) : '--'}<span class="unit">hPa</span> <span class="trend-arrow ${m.trend.cls}">${m.trend.arrow}</span></div>
+          <div class="value">${fmtPressure(m.pressureNow)}<span class="unit">${pressureUnitLabel()}</span> <span class="trend-arrow ${m.trend.cls}">${m.trend.arrow}</span></div>
           <div class="note" style="margin-top:2px;">${m.trend.label}</div>
         </div>
         <div class="cond-item">
           <div class="label">Wind</div>
-          <div class="value">${m.windAt !== null && m.windAt !== undefined ? Math.round(m.windAt) : '--'}<span class="unit">km/h</span></div>
+          <div class="value">${fmtWind(m.windAt)}<span class="unit">${windUnitLabel()}</span></div>
         </div>
         <div class="cond-item"><div class="label">Water temp</div>${waterTempHtml}</div>
         <div class="cond-item"><div class="label">Wave height</div>${waveHtml}</div>
@@ -1718,15 +1814,15 @@
       if (!dm) return '';
       const isSel = d === selectedDateStr;
       const isTod = d === todayStr;
-      const majors = dm.solunar.majors.slice(0, 2).map(x => shortClock(x.center)).join('<br>') || '--';
+      const majors = dm.solunar.majors.slice(0, 2).map(x => shortClockWords(x.center)).join('<br>') || '--';
       const waterCell = dm.marineAvailable && dm.waterTemp !== null ? fmtTemp(dm.waterTemp) : '—';
-      const waveCell = dm.marineAvailable && dm.waveHeight !== null ? dm.waveHeight.toFixed(1) + 'm' : '—';
+      const waveCell = dm.marineAvailable && dm.waveHeight !== null ? fmtWave(dm.waveHeight) + waveUnitLabel() : '—';
       return `
         <div class="compare-col ${isSel ? 'selected' : ''} ${isTod ? 'is-today' : ''}" data-date="${d}">
           <div class="compare-cell date-cell">${chipLabel(d, todayStr)}</div>
           <div class="compare-cell">${glyphFor(dm.desc.kind, chartTheme().text)}<span class="sub">${fmtTemp(dm.hi)}/${fmtTemp(dm.lo)}</span></div>
-          <div class="compare-cell"><span class="trend-arrow ${dm.trend.cls}">${dm.trend.arrow}</span><span class="sub">${dm.pressureNow ? Math.round(dm.pressureNow) : '--'}</span></div>
-          <div class="compare-cell">${dm.windAt !== null && dm.windAt !== undefined ? Math.round(dm.windAt) : '--'}<span class="sub">km/h</span></div>
+          <div class="compare-cell"><span class="trend-arrow ${dm.trend.cls}">${dm.trend.arrow}</span><span class="sub">${fmtPressure(dm.pressureNow)}</span></div>
+          <div class="compare-cell">${fmtWind(dm.windAt)}<span class="sub">${windUnitLabel()}</span></div>
           <div class="compare-cell">${waterCell}</div>
           <div class="compare-cell">${waveCell}</div>
           <div class="compare-cell">${moonPhaseGlyph(dm.illum.phase, chartTheme().text, darkMode ? '#2A3350' : '#DCE2EC', 18)}</div>

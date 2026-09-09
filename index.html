@@ -307,6 +307,10 @@
   let sunMoonCursorTime = null; // Date the user clicked/dragged on the sun/moon chart, or null to track "now"
   let sunMoonChartMeta = null; // { wStartMs, wEndMs, pph } from the most recent chart build, for pointer -> time math
   let draggingSunMoonCursor = false;
+  let sunMoonLastClientX = 0;
+  let sunMoonAutoScrollDir = 0; // -1 (left), 0 (none), 1 (right)
+  let sunMoonAutoScrollSpeed = 0;
+  let sunMoonAutoScrollRAF = null;
 
   // ---- Weather code -> description + glyph ----
   function describeCode(code) {
@@ -1042,9 +1046,48 @@
     if (time) updateSunMoonCursor(time);
   }
 
+  const SUNMOON_EDGE_ZONE = 50; // px from the visible chart's edge that triggers auto-scroll
+  const SUNMOON_MAX_SCROLL_SPEED = 14; // px per animation frame at the very edge
+
+  function sunMoonAutoScrollStep() {
+    const wrap = document.getElementById('sunMoonChartWrap');
+    if (!wrap || !draggingSunMoonCursor || sunMoonAutoScrollDir === 0) { sunMoonAutoScrollRAF = null; return; }
+    const maxScroll = wrap.scrollWidth - wrap.clientWidth;
+    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + sunMoonAutoScrollDir * sunMoonAutoScrollSpeed));
+    const time = sunMoonTimeFromClientX(sunMoonLastClientX);
+    if (time) updateSunMoonCursor(time);
+    sunMoonAutoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
+  }
+
+  function updateSunMoonAutoScroll(clientX) {
+    const wrap = document.getElementById('sunMoonChartWrap');
+    if (!wrap) { sunMoonAutoScrollDir = 0; return; }
+    const rect = wrap.getBoundingClientRect();
+    const leftDist = clientX - rect.left;
+    const rightDist = rect.right - clientX;
+    if (leftDist < SUNMOON_EDGE_ZONE) {
+      sunMoonAutoScrollDir = -1;
+      sunMoonAutoScrollSpeed = SUNMOON_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / SUNMOON_EDGE_ZONE);
+    } else if (rightDist < SUNMOON_EDGE_ZONE) {
+      sunMoonAutoScrollDir = 1;
+      sunMoonAutoScrollSpeed = SUNMOON_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / SUNMOON_EDGE_ZONE);
+    } else {
+      sunMoonAutoScrollDir = 0;
+    }
+    if (sunMoonAutoScrollDir !== 0 && !sunMoonAutoScrollRAF) {
+      sunMoonAutoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
+    }
+  }
+
+  function stopSunMoonAutoScroll() {
+    sunMoonAutoScrollDir = 0;
+    if (sunMoonAutoScrollRAF) { cancelAnimationFrame(sunMoonAutoScrollRAF); sunMoonAutoScrollRAF = null; }
+  }
+
   function handleSunMoonPointerDown(e) {
     if (e.target.id !== 'sunMoonCursorHandle') return;
     draggingSunMoonCursor = true;
+    sunMoonLastClientX = e.clientX;
     try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
     e.target.style.cursor = 'grabbing';
     const time = sunMoonTimeFromClientX(e.clientX);
@@ -1054,13 +1097,16 @@
 
   function handleSunMoonPointerMove(e) {
     if (!draggingSunMoonCursor) return;
+    sunMoonLastClientX = e.clientX;
     const time = sunMoonTimeFromClientX(e.clientX);
     if (time) updateSunMoonCursor(time);
+    updateSunMoonAutoScroll(e.clientX);
   }
 
   function handleSunMoonPointerUp(e) {
     if (!draggingSunMoonCursor) return;
     draggingSunMoonCursor = false;
+    stopSunMoonAutoScroll();
     if (e.target.id === 'sunMoonCursorHandle') e.target.style.cursor = 'grab';
   }
 

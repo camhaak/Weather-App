@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
 <style>
   :root {
     --navy: #1C2541;
@@ -63,6 +64,13 @@
 
   .app-header { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 20px 0; }
   .app-header-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+  .tab-bar { display: flex; gap: 6px; margin: 14px 20px 0; background: var(--surface-alt2); border-radius: 20px; padding: 3px; }
+  .tab-bar button {
+    flex: 1; font-family: 'Work Sans', sans-serif; font-size: 13.5px; font-weight: 500; padding: 8px 0;
+    border: none; border-radius: 16px; background: none; color: var(--text-muted); cursor: pointer;
+  }
+  .tab-bar button.active { background: var(--accent-strong); color: var(--cream); }
 
   .location-btn {
     display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%;
@@ -366,6 +374,22 @@
   .note { font-size: 12.5px; color: var(--text-muted); margin-top: 12px; }
   .coverage-note { font-size: 12.5px; color: var(--text-muted); margin: 14px 20px 0; }
 
+  /* Radar/wind map tab (prototype) */
+  .radar-tab { padding: 14px 20px 30px; display: flex; flex-direction: column; gap: 12px; }
+  .radar-tab[hidden] { display: none; }
+  .radar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .radar-status { font-size: 12px; color: var(--text-muted); text-align: right; }
+  .radar-map-wrap {
+    position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--border-soft);
+    height: 420px; background: var(--surface-alt2);
+  }
+  .radar-map { position: absolute; inset: 0; }
+  .radar-map-scrim { position: absolute; inset: 0; background: rgba(8,12,26,0.4); pointer-events: none; }
+  .radar-map-scrim[hidden] { display: none; }
+  .wind-canvas { position: absolute; inset: 0; pointer-events: none; }
+  .radar-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--text-muted); margin: 0; }
+  .radar-note { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
   @media (prefers-reduced-motion: reduce) { .hero { transition: none; } }
 </style>
 </head>
@@ -457,14 +481,39 @@
     </div>
   </div>
 
-  <div id="dayPickerWrap"></div>
-  <div id="content">
-    <div class="status" id="status">Search a spot or use your location to see fishing conditions — past week through the next two.</div>
+  <div class="tab-bar" id="tabBar">
+    <button type="button" data-tab="conditions" class="active">Conditions</button>
+    <button type="button" data-tab="radar">Radar</button>
+  </div>
+
+  <div id="conditionsTab">
+    <div id="dayPickerWrap"></div>
+    <div id="content">
+      <div class="status" id="status">Search a spot or use your location to see fishing conditions — past week through the next two.</div>
+    </div>
+  </div>
+
+  <div class="radar-tab" id="radarTab" hidden>
+    <div class="radar-toolbar">
+      <div class="trend-toggle" id="radarLayerToggle">
+        <button type="button" data-layer="rain" class="active">Rain</button>
+        <button type="button" data-layer="wind">Wind</button>
+      </div>
+      <span class="radar-status" id="radarStatus"></span>
+    </div>
+    <div class="radar-map-wrap">
+      <div class="radar-map" id="radarMap"></div>
+      <div class="radar-map-scrim" id="radarMapScrim" hidden></div>
+      <canvas class="wind-canvas" id="windCanvas"></canvas>
+    </div>
+    <p class="radar-legend" id="radarLegend"></p>
+    <p class="radar-note">Prototype: rain radar is live (RainViewer). Wind is a live but coarse regional snapshot built from Open-Meteo point data, not a true gridded wind model — good enough to judge the look and feel.</p>
   </div>
 
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <script>
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
@@ -485,6 +534,9 @@
   const locationCloseBtn = document.getElementById('locationCloseBtn');
   const favToggleBtn = document.getElementById('favToggleBtn');
   const favoritesListEl = document.getElementById('favoritesList');
+  const tabBar = document.getElementById('tabBar');
+  const conditionsTab = document.getElementById('conditionsTab');
+  const radarTab = document.getElementById('radarTab');
 
   const SAVED_LOCATION_KEY = 'tideAndTime.savedLocation';
 
@@ -2135,6 +2187,277 @@
     // Keep the selected compare column in view (horizontally only)
     const selCol = document.querySelector('.compare-col.selected');
     centerHorizontally(document.getElementById('compareScroll'), selCol, false);
+  }
+
+  // ---- Tabs (prototype: Conditions vs. Radar map) ----
+  let activeTab = 'conditions';
+
+  tabBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-tab]');
+    if (!btn) return;
+    setActiveTab(btn.dataset.tab);
+  });
+
+  function setActiveTab(tab) {
+    activeTab = tab;
+    tabBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    conditionsTab.hidden = tab !== 'conditions';
+    radarTab.hidden = tab !== 'radar';
+    if (tab === 'radar') initRadarMap();
+  }
+
+  // ---- Radar/wind map (prototype) ----
+  // Rain radar: RainViewer's free public tile API — real, live, no key required.
+  // Wind: no free live *gridded* wind API is reachable from the browser, so this builds a coarse
+  // grid itself from Open-Meteo's multi-point forecast endpoint (one request, ~9x9 points around
+  // the map center) and animates it with the classic "wind map" particle-advection technique. A
+  // real product would replace this with a backend that decodes a proper model (e.g. GFS) into a
+  // finer grid — this is just enough to judge whether the visual technique is worth building on.
+  let radarMap = null;
+  let radarLayerMode = 'rain';
+  let windGrid = null; // { nx, ny, la1, la2, lo1, lo2, u, v } — la1/lo1 = north-west corner
+  let windParticles = [];
+  let windAnimRAF = null;
+  const WIND_PARTICLE_COUNT = 1000;
+  const WIND_GRID_SIZE = 9;
+  const WIND_GRID_SPAN_DEG = 3; // +/- degrees lat/lon around center (~660km square at the equator)
+
+  function initRadarMap() {
+    if (radarMap) { radarMap.resize(); return; }
+    if (typeof maplibregl === 'undefined') {
+      document.getElementById('radarStatus').textContent = 'Map library failed to load.';
+      return;
+    }
+    const center = lastCoords ? [lastCoords.lon, lastCoords.lat] : [151.2093, -33.8688];
+    // Plain OpenStreetMap raster tiles — the one basemap source that's reliably free and
+    // keyless. CARTO's free basemaps (tried first) now watermark their tiles "API key required",
+    // so swap this for a proper key-based provider (MapTiler/Stadia both have free tiers) once a
+    // nicer dark-themed basemap actually matters.
+    radarMap = new maplibregl.Map({
+      container: 'radarMap',
+      style: {
+        version: 8,
+        sources: {
+          basemap: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors',
+          },
+        },
+        layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
+      },
+      center,
+      zoom: 7,
+    });
+    radarMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    radarMap.on('load', () => {
+      loadRainRadar();
+      loadWindGrid();
+      positionWindCanvas();
+      setRadarLayerMode(radarLayerMode);
+    });
+    radarMap.on('resize', positionWindCanvas);
+    radarMap.on('movestart', clearWindCanvas);
+  }
+
+  async function loadRainRadar() {
+    try {
+      const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+      const data = await res.json();
+      const frames = (data.radar && data.radar.past) || [];
+      const latest = frames[frames.length - 1];
+      if (!latest) throw new Error('no radar frames');
+      // 512px tiles (not 256) — RainViewer's radar tiles top out at a lower max zoom than the
+      // basemap, and at 512px each tile covers 4x the area, keeping requests within that range
+      // even on high-DPI displays (which push MapLibre to request one zoom level higher).
+      const tileUrl = `${data.host}${latest.path}/512/{z}/{x}/{y}/2/1_1.png`;
+      if (radarMap.getSource('rain')) {
+        radarMap.getSource('rain').setTiles([tileUrl]);
+      } else {
+        radarMap.addSource('rain', { type: 'raster', tiles: [tileUrl], tileSize: 512 });
+        radarMap.addLayer({ id: 'rain-layer', type: 'raster', source: 'rain', paint: { 'raster-opacity': 0.75 } });
+      }
+    } catch (e) {
+      // leave whatever was there; status text reflects the failure
+    }
+    updateRadarStatus();
+  }
+
+  async function loadWindGrid() {
+    const center = lastCoords || { lat: -33.8688, lon: 151.2093 };
+    const n = WIND_GRID_SIZE, span = WIND_GRID_SPAN_DEG;
+    const lats = [], lons = [];
+    for (let i = 0; i < n; i++) {
+      const la = center.lat + span - (i * (2 * span) / (n - 1));
+      for (let j = 0; j < n; j++) {
+        lats.push((la).toFixed(3));
+        lons.push((center.lon - span + (j * (2 * span) / (n - 1))).toFixed(3));
+      }
+    }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats.join(',')}&longitude=${lons.join(',')}` +
+      `&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [data];
+      if (list.length !== n * n) throw new Error('unexpected grid response shape');
+      const u = new Float32Array(n * n), v = new Float32Array(n * n);
+      list.forEach((pt, idx) => {
+        const speed = pt.current.wind_speed_10m;
+        const rad = pt.current.wind_direction_10m * Math.PI / 180;
+        // Meteorological direction is "from", so the velocity vector points the opposite way.
+        u[idx] = -speed * Math.sin(rad);
+        v[idx] = -speed * Math.cos(rad);
+      });
+      windGrid = { nx: n, ny: n, la1: center.lat + span, la2: center.lat - span, lo1: center.lon - span, lo2: center.lon + span, u, v };
+      resetWindParticles();
+      if (radarLayerMode === 'wind' && !windAnimRAF) windAnimRAF = requestAnimationFrame(windAnimStep);
+    } catch (e) {
+      windGrid = null;
+    }
+    updateRadarStatus();
+  }
+
+  function windGridSample(lat, lon) {
+    if (!windGrid) return null;
+    const { nx, ny, la1, la2, lo1, lo2, u, v } = windGrid;
+    if (lat > la1 || lat < la2 || lon < lo1 || lon > lo2) return null;
+    const x = (lon - lo1) / (lo2 - lo1) * (nx - 1);
+    const y = (la1 - lat) / (la1 - la2) * (ny - 1);
+    const x0 = Math.floor(x), x1 = Math.min(nx - 1, x0 + 1);
+    const y0 = Math.floor(y), y1 = Math.min(ny - 1, y0 + 1);
+    const fx = x - x0, fy = y - y0;
+    const idx = (xx, yy) => yy * nx + xx;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const uTop = lerp(u[idx(x0, y0)], u[idx(x1, y0)], fx), uBot = lerp(u[idx(x0, y1)], u[idx(x1, y1)], fx);
+    const vTop = lerp(v[idx(x0, y0)], v[idx(x1, y0)], fx), vBot = lerp(v[idx(x0, y1)], v[idx(x1, y1)], fx);
+    return { u: lerp(uTop, uBot, fy), v: lerp(vTop, vBot, fy) };
+  }
+
+  function spawnParticle() {
+    if (!windGrid) return { lng: 0, lat: 0, age: 0 };
+    return {
+      lng: windGrid.lo1 + Math.random() * (windGrid.lo2 - windGrid.lo1),
+      lat: windGrid.la2 + Math.random() * (windGrid.la1 - windGrid.la2),
+      age: Math.random() * 60,
+    };
+  }
+
+  function resetWindParticles() {
+    windParticles = Array.from({ length: WIND_PARTICLE_COUNT }, spawnParticle);
+  }
+
+  function positionWindCanvas() {
+    const canvas = document.getElementById('windCanvas');
+    const mapDiv = document.getElementById('radarMap');
+    if (!canvas || !mapDiv) return;
+    const rect = mapDiv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    canvas.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function clearWindCanvas() {
+    const canvas = document.getElementById('windCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
+  const WIND_STEP_SECONDS = 25; // exaggerated for visual clarity, not real-time physical accuracy
+  const WIND_MAX_AGE = 400; // frames a particle lives before respawning — needs to be long enough
+                             // to build a visible streak even in light wind
+
+  function windAnimStep() {
+    const canvas = document.getElementById('windCanvas');
+    if (!canvas || !radarMap || radarLayerMode !== 'wind' || !windGrid) { windAnimRAF = null; return; }
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.width / dpr, cssH = canvas.height / dpr;
+
+    // Fade existing trails instead of clearing, by scaling down their alpha — the standard
+    // "wind map" look, cheap to do since the canvas has a transparent background.
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = 'rgba(0,0,0,0.90)';
+    ctx.fillRect(0, 0, cssW, cssH);
+    ctx.globalCompositeOperation = 'source-over';
+
+    const metersPerDegLat = 111320;
+    const segments = [];
+    windParticles.forEach(p => {
+      const sample = windGridSample(p.lat, p.lng);
+      p.age++;
+      if (!sample || p.age > WIND_MAX_AGE) {
+        Object.assign(p, spawnParticle());
+        return;
+      }
+      const prevPt = radarMap.project([p.lng, p.lat]);
+      const metersPerDegLon = metersPerDegLat * Math.cos(p.lat * Math.PI / 180);
+      p.lng += (sample.u * WIND_STEP_SECONDS) / metersPerDegLon;
+      p.lat += (sample.v * WIND_STEP_SECONDS) / metersPerDegLat;
+      const newPt = radarMap.project([p.lng, p.lat]);
+      segments.push([prevPt.x, prevPt.y, newPt.x, newPt.y]);
+    });
+
+    // Two passes — a wider dark halo, then the thin bright stroke — so the streaks stay legible
+    // over both light and dark patches of a real, colorful basemap.
+    [{ color: 'rgba(8,12,26,0.55)', width: 3.6 }, { color: '#22D3EE', width: 1.5 }].forEach(({ color, width }) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      segments.forEach(([x1, y1, x2, y2]) => { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); });
+      ctx.stroke();
+    });
+
+    windAnimRAF = requestAnimationFrame(windAnimStep);
+  }
+
+  document.getElementById('radarLayerToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-layer]');
+    if (!btn) return;
+    setRadarLayerMode(btn.dataset.layer);
+  });
+
+  function setRadarLayerMode(mode) {
+    radarLayerMode = mode;
+    document.querySelectorAll('#radarLayerToggle button').forEach(b => b.classList.toggle('active', b.dataset.layer === mode));
+    const canvas = document.getElementById('windCanvas');
+    if (canvas) canvas.style.display = mode === 'wind' ? 'block' : 'none';
+    const scrim = document.getElementById('radarMapScrim');
+    if (scrim) scrim.hidden = mode !== 'wind';
+    if (radarMap && radarMap.getLayer('rain-layer')) {
+      radarMap.setLayoutProperty('rain-layer', 'visibility', mode === 'rain' ? 'visible' : 'none');
+    }
+    if (mode === 'wind' && windGrid && !windAnimRAF) windAnimRAF = requestAnimationFrame(windAnimStep);
+    updateRadarStatus();
+    updateRadarLegend();
+  }
+
+  function updateRadarStatus() {
+    const statusEl = document.getElementById('radarStatus');
+    if (!statusEl) return;
+    if (radarLayerMode === 'rain') {
+      statusEl.textContent = radarMap && radarMap.getSource('rain') ? 'Live radar · RainViewer' : 'Loading radar…';
+    } else {
+      statusEl.textContent = windGrid ? 'Live wind · Open-Meteo (coarse grid)' : 'Loading wind data…';
+    }
+  }
+
+  function updateRadarLegend() {
+    const legendEl = document.getElementById('radarLegend');
+    if (!legendEl) return;
+    legendEl.innerHTML = radarLayerMode === 'rain'
+      ? `<span class="legend-item"><span class="legend-dot" style="background:#4C9F94;"></span>Light rain</span>
+         <span class="legend-item"><span class="legend-dot" style="background:#E3A857;"></span>Moderate</span>
+         <span class="legend-item"><span class="legend-dot" style="background:#C4633F;"></span>Heavy</span>`
+      : `<span class="legend-item"><span class="legend-dot" style="background:${chartTheme().text};"></span>Wind flow (streaks show speed &amp; direction)</span>`;
   }
 
   // ---- Restore a saved location on load, if any ----

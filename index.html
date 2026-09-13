@@ -387,6 +387,15 @@
   .radar-map-scrim { position: absolute; inset: 0; background: rgba(8,12,26,0.4); pointer-events: none; }
   .radar-map-scrim[hidden] { display: none; }
   .wind-canvas { position: absolute; inset: 0; pointer-events: none; }
+  .radar-frame-bar { display: flex; align-items: center; gap: 10px; }
+  .radar-play-btn {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .radar-play-btn:hover { background: var(--surface-alt); }
+  .radar-frame-bar input[type="range"] { flex: 1 1 auto; accent-color: var(--accent-strong); }
+  .radar-frame-label { flex: 0 0 auto; font-size: 12px; color: var(--text-muted); width: 66px; text-align: right; }
   .radar-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--text-muted); margin: 0; }
   .radar-note { font-size: 12.5px; color: var(--text-muted); margin: 0; }
 
@@ -505,6 +514,11 @@
       <div class="radar-map" id="radarMap"></div>
       <div class="radar-map-scrim" id="radarMapScrim" hidden></div>
       <canvas class="wind-canvas" id="windCanvas"></canvas>
+    </div>
+    <div class="radar-frame-bar">
+      <button type="button" class="radar-play-btn" id="radarPlayBtn" aria-label="Pause">⏸</button>
+      <input type="range" id="radarFrameSlider" min="0" max="0" step="1" value="0">
+      <span class="radar-frame-label" id="radarFrameLabel">Now</span>
     </div>
     <p class="radar-legend" id="radarLegend"></p>
     <p class="radar-note">Prototype: rain radar is live (RainViewer). Wind is a live but coarse regional snapshot built from Open-Meteo point data, not a true gridded wind model — good enough to judge the look and feel.</p>
@@ -2209,18 +2223,28 @@
   // ---- Radar/wind map (prototype) ----
   // Rain radar: RainViewer's free public tile API — real, live, no key required.
   // Wind: no free live *gridded* wind API is reachable from the browser, so this builds a coarse
-  // grid itself from Open-Meteo's multi-point forecast endpoint (one request, ~9x9 points around
-  // the map center) and animates it with the classic "wind map" particle-advection technique. A
-  // real product would replace this with a backend that decodes a proper model (e.g. GFS) into a
-  // finer grid — this is just enough to judge whether the visual technique is worth building on.
+  // grid itself from Open-Meteo's multi-point forecast endpoint (one request, ~11x11 points
+  // around the map center) and animates it with the classic "wind map" particle-advection
+  // technique. A real product would replace this with a backend that decodes a proper model
+  // (e.g. GFS) into a finer grid — this is just enough to judge whether the visual technique is
+  // worth building on. Both layers can step/play back through recent frames to show a trend.
   let radarMap = null;
   let radarLayerMode = 'rain';
-  let windGrid = null; // { nx, ny, la1, la2, lo1, lo2, u, v } — la1/lo1 = north-west corner
+  let windGrid = null; // the CURRENTLY DISPLAYED grid: { nx, ny, la1, la2, lo1, lo2, u, v, timeMs }
+  let windGridBounds = null; // { center:{lat,lon}, span } the last-fetched grid's coverage
+  let windGridFetchInFlight = false;
+  let windGridLastFetchAt = 0;
   let windParticles = [];
   let windAnimRAF = null;
-  const WIND_PARTICLE_COUNT = 1000;
-  const WIND_GRID_SIZE = 9;
-  const WIND_GRID_SPAN_DEG = 3; // +/- degrees lat/lon around center (~660km square at the equator)
+  const WIND_PARTICLE_COUNT = 1200;
+  const WIND_GRID_SIZE = 11;
+
+  let rainHost = '';
+  let rainFrames = []; // [{ timeMs, path }] oldest -> newest, ~last 90 minutes
+  let windFrames = []; // [{ ...grid fields, timeMs }] oldest -> newest: 2h ago, 1h ago, now
+  let radarFrameIndex = 0;
+  let radarFramePlaying = true;
+  let radarFrameTimer = null;
 
   function initRadarMap() {
     if (radarMap) { radarMap.resize(); return; }
@@ -2228,7 +2252,7 @@
       document.getElementById('radarStatus').textContent = 'Map library failed to load.';
       return;
     }
-    const center = lastCoords ? [lastCoords.lon, lastCoords.lat] : [151.2093, -33.8688];
+    const start = currentRadarCenter();
     // Plain OpenStreetMap raster tiles — the one basemap source that's reliably free and
     // keyless. CARTO's free basemaps (tried first) now watermark their tiles "API key required",
     // so swap this for a proper key-based provider (MapTiler/Stadia both have free tiers) once a
@@ -2247,75 +2271,213 @@
         },
         layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
       },
-      center,
+      center: [start.lon, start.lat],
       zoom: 7,
     });
     radarMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     radarMap.on('load', () => {
       loadRainRadar();
-      loadWindGrid();
+      loadWindGrid(start, spanForZoom(radarMap.getZoom()));
       positionWindCanvas();
       setRadarLayerMode(radarLayerMode);
+      document.getElementById('radarMapScrim').hidden = false;
     });
     radarMap.on('resize', positionWindCanvas);
     radarMap.on('movestart', clearWindCanvas);
+    radarMap.on('moveend', handleRadarMapMoveEnd);
   }
+
+  function currentRadarCenter() {
+    if (radarMap) { const c = radarMap.getCenter(); return { lat: c.lat, lon: c.lng }; }
+    return lastCoords || { lat: -33.8688, lon: 151.2093 };
+  }
+
+  // Keeps the wind grid a bit larger than whatever's on screen at any zoom level, coarser the
+  // further out the user is — a rough stand-in for a real "detail scales with zoom" policy.
+  function spanForZoom(zoom) {
+    if (zoom >= 9) return 1.2;
+    if (zoom >= 7) return 3;
+    if (zoom >= 5) return 7;
+    return 15;
+  }
+
+  // Refetches the wind grid when the map has panned/zoomed far enough that the cached grid no
+  // longer comfortably covers the view. Rain doesn't need this — RainViewer's tiles are served
+  // per-tile from a single global composite, so panning just requests more tiles as normal.
+  function handleRadarMapMoveEnd() {
+    if (windGridFetchInFlight || Date.now() - windGridLastFetchAt < 4000) return;
+    const center = currentRadarCenter();
+    const span = spanForZoom(radarMap.getZoom());
+    const prev = windGridBounds;
+    const movedFar = !prev || Math.hypot(prev.center.lat - center.lat, prev.center.lon - center.lon) > prev.span * 0.6;
+    const spanChanged = !prev || Math.abs(prev.span - span) > 0.5;
+    if (movedFar || spanChanged) loadWindGrid(center, span);
+  }
+
+  function currentFrameList() { return radarLayerMode === 'rain' ? rainFrames : windFrames; }
+
+  function setupFrameSlider() {
+    const slider = document.getElementById('radarFrameSlider');
+    if (!slider) return;
+    const frames = currentFrameList();
+    slider.max = String(Math.max(0, frames.length - 1));
+  }
+
+  // Shared by both layers: moves to frame `idx` in whichever list is active, updating either the
+  // rain tile source or the live wind grid the particle animation reads from.
+  function applyRadarFrame(idx) {
+    const frames = currentFrameList();
+    if (!frames.length) return;
+    radarFrameIndex = Math.max(0, Math.min(frames.length - 1, idx));
+    const frame = frames[radarFrameIndex];
+    if (radarLayerMode === 'rain') {
+      const tileUrl = `${rainHost}${frame.path}/512/{z}/{x}/{y}/2/1_1.png`;
+      if (radarMap.getSource('rain')) {
+        radarMap.getSource('rain').setTiles([tileUrl]);
+      } else {
+        // maxzoom caps requests at RainViewer's real ceiling (z7) — past that, MapLibre smoothly
+        // over-scales the last tile instead of requesting an invalid zoom (which RainViewer answers
+        // with a "Zoom Level Not Supported" placeholder image baked right into the tile).
+        radarMap.addSource('rain', { type: 'raster', tiles: [tileUrl], tileSize: 512, maxzoom: 7 });
+        radarMap.addLayer({ id: 'rain-layer', type: 'raster', source: 'rain', paint: { 'raster-opacity': 0.9 } });
+      }
+    } else {
+      windGrid = frame;
+    }
+    const slider = document.getElementById('radarFrameSlider');
+    if (slider) slider.value = String(radarFrameIndex);
+    updateFrameLabel();
+  }
+
+  function updateFrameLabel() {
+    const label = document.getElementById('radarFrameLabel');
+    if (!label) return;
+    const frames = currentFrameList();
+    const frame = frames[radarFrameIndex];
+    if (!frame) { label.textContent = ''; return; }
+    if (radarFrameIndex === frames.length - 1) { label.textContent = 'Now'; return; }
+    const minsAgo = Math.round((Date.now() - frame.timeMs) / 60000);
+    label.textContent = minsAgo < 60 ? `${minsAgo} min ago` : `${Math.round(minsAgo / 60)}h ago`;
+  }
+
+  function startRadarPlayback() {
+    radarFramePlaying = true;
+    updatePlayButton();
+    if (radarFrameTimer) clearInterval(radarFrameTimer);
+    radarFrameTimer = setInterval(() => {
+      const frames = currentFrameList();
+      if (!frames.length) return;
+      applyRadarFrame(radarFrameIndex + 1 >= frames.length ? 0 : radarFrameIndex + 1);
+    }, 700);
+  }
+
+  function pauseRadarPlayback() {
+    radarFramePlaying = false;
+    if (radarFrameTimer) { clearInterval(radarFrameTimer); radarFrameTimer = null; }
+    updatePlayButton();
+  }
+
+  function updatePlayButton() {
+    const btn = document.getElementById('radarPlayBtn');
+    if (!btn) return;
+    btn.textContent = radarFramePlaying ? '⏸' : '▶';
+    btn.setAttribute('aria-label', radarFramePlaying ? 'Pause' : 'Play');
+  }
+
+  document.getElementById('radarPlayBtn').addEventListener('click', () => {
+    if (radarFramePlaying) pauseRadarPlayback(); else startRadarPlayback();
+  });
+  document.getElementById('radarFrameSlider').addEventListener('input', (e) => {
+    pauseRadarPlayback();
+    applyRadarFrame(parseInt(e.target.value, 10));
+  });
 
   async function loadRainRadar() {
     try {
       const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
       const data = await res.json();
-      const frames = (data.radar && data.radar.past) || [];
-      const latest = frames[frames.length - 1];
-      if (!latest) throw new Error('no radar frames');
-      // 512px tiles (not 256) — RainViewer's radar tiles top out at a lower max zoom than the
-      // basemap, and at 512px each tile covers 4x the area, keeping requests within that range
-      // even on high-DPI displays (which push MapLibre to request one zoom level higher).
-      const tileUrl = `${data.host}${latest.path}/512/{z}/{x}/{y}/2/1_1.png`;
-      if (radarMap.getSource('rain')) {
-        radarMap.getSource('rain').setTiles([tileUrl]);
-      } else {
-        radarMap.addSource('rain', { type: 'raster', tiles: [tileUrl], tileSize: 512 });
-        radarMap.addLayer({ id: 'rain-layer', type: 'raster', source: 'rain', paint: { 'raster-opacity': 0.75 } });
+      const allPast = (data.radar && data.radar.past) || [];
+      if (!allPast.length) throw new Error('no radar frames');
+      rainHost = data.host;
+      // RainViewer frames land roughly every 10 minutes — keep about the last 90 of them.
+      rainFrames = allPast.slice(-9).map(f => ({ timeMs: f.time * 1000, path: f.path }));
+      if (radarLayerMode === 'rain') {
+        setupFrameSlider();
+        applyRadarFrame(rainFrames.length - 1);
       }
     } catch (e) {
-      // leave whatever was there; status text reflects the failure
+      rainFrames = [];
     }
     updateRadarStatus();
   }
 
-  async function loadWindGrid() {
-    const center = lastCoords || { lat: -33.8688, lon: 151.2093 };
-    const n = WIND_GRID_SIZE, span = WIND_GRID_SPAN_DEG;
+  function utcDateStr(d) { return d.toISOString().slice(0, 10); }
+  function utcHourStr(d) { return String(d.getUTCHours()).padStart(2, '0') + ':00'; }
+
+  async function loadWindGrid(center, span) {
+    if (windGridFetchInFlight) return;
+    windGridFetchInFlight = true;
+    windGridLastFetchAt = Date.now();
+    const n = WIND_GRID_SIZE;
     const lats = [], lons = [];
     for (let i = 0; i < n; i++) {
       const la = center.lat + span - (i * (2 * span) / (n - 1));
       for (let j = 0; j < n; j++) {
-        lats.push((la).toFixed(3));
+        lats.push(la.toFixed(3));
         lons.push((center.lon - span + (j * (2 * span) / (n - 1))).toFixed(3));
       }
     }
+    // No timezone param (defaults to UTC/GMT) so the hourly timestamps below can be matched
+    // against plain UTC math, regardless of which timezone the map happens to be centered over.
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats.join(',')}&longitude=${lons.join(',')}` +
-      `&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
+      `&current=wind_speed_10m,wind_direction_10m&hourly=wind_speed_10m,wind_direction_10m` +
+      `&past_days=1&forecast_days=1&wind_speed_unit=ms`;
     try {
       const res = await fetch(url);
       const data = await res.json();
       const list = Array.isArray(data) ? data : [data];
       if (list.length !== n * n) throw new Error('unexpected grid response shape');
-      const u = new Float32Array(n * n), v = new Float32Array(n * n);
-      list.forEach((pt, idx) => {
-        const speed = pt.current.wind_speed_10m;
-        const rad = pt.current.wind_direction_10m * Math.PI / 180;
-        // Meteorological direction is "from", so the velocity vector points the opposite way.
-        u[idx] = -speed * Math.sin(rad);
-        v[idx] = -speed * Math.cos(rad);
+      const now = new Date();
+      const frames = [2, 1, 0].map(hoursAgo => { // oldest -> newest
+        const frameTime = new Date(now.getTime() - hoursAgo * 3600000);
+        const wantedTime = hoursAgo === 0 ? null : `${utcDateStr(frameTime)}T${utcHourStr(frameTime)}`;
+        const u = new Float32Array(n * n), v = new Float32Array(n * n);
+        list.forEach((pt, idx) => {
+          let speed, dirDeg;
+          if (hoursAgo === 0) {
+            speed = pt.current.wind_speed_10m;
+            dirDeg = pt.current.wind_direction_10m;
+          } else {
+            const hIdx = pt.hourly.time.indexOf(wantedTime);
+            speed = hIdx !== -1 ? pt.hourly.wind_speed_10m[hIdx] : pt.current.wind_speed_10m;
+            dirDeg = hIdx !== -1 ? pt.hourly.wind_direction_10m[hIdx] : pt.current.wind_direction_10m;
+          }
+          const rad = dirDeg * Math.PI / 180;
+          // Meteorological direction is "from", so the velocity vector points the opposite way.
+          u[idx] = -speed * Math.sin(rad);
+          v[idx] = -speed * Math.cos(rad);
+        });
+        return {
+          nx: n, ny: n,
+          la1: center.lat + span, la2: center.lat - span, lo1: center.lon - span, lo2: center.lon + span,
+          u, v, timeMs: frameTime.getTime(),
+        };
       });
-      windGrid = { nx: n, ny: n, la1: center.lat + span, la2: center.lat - span, lo1: center.lon - span, lo2: center.lon + span, u, v };
-      resetWindParticles();
+      const hadNoParticlesYet = windParticles.length === 0;
+      windFrames = frames;
+      windGridBounds = { center, span };
+      if (radarLayerMode === 'wind') {
+        setupFrameSlider();
+        applyRadarFrame(windFrames.length - 1);
+      } else {
+        windGrid = windFrames[windFrames.length - 1];
+      }
+      if (hadNoParticlesYet) resetWindParticles();
       if (radarLayerMode === 'wind' && !windAnimRAF) windAnimRAF = requestAnimationFrame(windAnimStep);
     } catch (e) {
-      windGrid = null;
+      if (!windFrames.length) windGrid = null;
     }
+    windGridFetchInFlight = false;
     updateRadarStatus();
   }
 
@@ -2430,12 +2592,14 @@
     document.querySelectorAll('#radarLayerToggle button').forEach(b => b.classList.toggle('active', b.dataset.layer === mode));
     const canvas = document.getElementById('windCanvas');
     if (canvas) canvas.style.display = mode === 'wind' ? 'block' : 'none';
-    const scrim = document.getElementById('radarMapScrim');
-    if (scrim) scrim.hidden = mode !== 'wind';
     if (radarMap && radarMap.getLayer('rain-layer')) {
       radarMap.setLayoutProperty('rain-layer', 'visibility', mode === 'rain' ? 'visible' : 'none');
     }
+    const frames = currentFrameList();
+    setupFrameSlider();
+    if (frames.length) applyRadarFrame(frames.length - 1);
     if (mode === 'wind' && windGrid && !windAnimRAF) windAnimRAF = requestAnimationFrame(windAnimStep);
+    if (radarFramePlaying) startRadarPlayback(); // restart the ticking loop against the new mode's frame list
     updateRadarStatus();
     updateRadarLegend();
   }
@@ -2443,11 +2607,9 @@
   function updateRadarStatus() {
     const statusEl = document.getElementById('radarStatus');
     if (!statusEl) return;
-    if (radarLayerMode === 'rain') {
-      statusEl.textContent = radarMap && radarMap.getSource('rain') ? 'Live radar · RainViewer' : 'Loading radar…';
-    } else {
-      statusEl.textContent = windGrid ? 'Live wind · Open-Meteo (coarse grid)' : 'Loading wind data…';
-    }
+    statusEl.textContent = radarLayerMode === 'rain'
+      ? (rainFrames.length ? 'Live radar · RainViewer' : 'Loading radar…')
+      : (windFrames.length ? 'Live wind · Open-Meteo (coarse grid)' : 'Loading wind data…');
   }
 
   function updateRadarLegend() {

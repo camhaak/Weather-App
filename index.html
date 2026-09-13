@@ -103,6 +103,9 @@
   .switch .switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
   .switch.on { background: var(--teal); }
   .switch.on .switch-knob { left: 20px; }
+  .switch-sm { width: 34px; height: 20px; border-radius: 10px; }
+  .switch-sm .switch-knob { width: 16px; height: 16px; }
+  .switch-sm.on .switch-knob { left: 16px; }
 
   .settings-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-faint); }
   .settings-group:first-of-type { margin-top: 14px; }
@@ -152,7 +155,10 @@
   }
   .fav-star-btn.saved { color: var(--gold); }
   .favorites-empty { font-size: 12.5px; color: var(--text-muted); padding: 4px 0; }
-  .favorite-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; }
+  .favorite-row { padding: 2px 0 6px; border-bottom: 1px solid var(--border-faint); }
+  .favorite-row:last-child { border-bottom: none; }
+  .favorite-row-main { display: flex; align-items: center; gap: 4px; }
+  .favorite-map-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 8px 0; font-size: 12px; color: var(--text-muted); }
   .favorite-select {
     flex: 1; min-width: 0; text-align: left; font-family: 'Work Sans', sans-serif; font-size: 14px; color: var(--text);
     background: none; border: none; padding: 9px 8px; border-radius: 8px; cursor: pointer;
@@ -397,6 +403,35 @@
   .radar-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--text-muted); margin: 0; }
   .radar-note { font-size: 12.5px; color: var(--text-muted); margin: 0; }
 
+  /* Tap-to-inspect pin + favorite pins on the radar map */
+  .spot-marker { cursor: pointer; }
+  .spot-marker-inspector {
+    width: 16px; height: 16px; border-radius: 50%; background: var(--teal); border: 3px solid var(--surface);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .spot-marker-favorite { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .spot-marker-favorite .pin-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--gold); border: 2px solid var(--surface);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .spot-marker-favorite .pin-label {
+    background: var(--surface); border: 1px solid var(--border-faint); border-radius: 8px; padding: 3px 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3); text-align: center; line-height: 1.3; white-space: nowrap;
+  }
+  .spot-marker-favorite .pin-name { font-size: 11px; font-weight: 600; color: var(--text); }
+  .spot-marker-favorite .pin-stats { font-size: 10px; color: var(--text-muted); }
+
+  .spot-popup .maplibregl-popup-content {
+    background: var(--surface); color: var(--text); border-radius: 12px; padding: 10px 14px 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35); font-family: 'Work Sans', sans-serif;
+  }
+  .spot-popup .maplibregl-popup-tip {
+    border-top-color: var(--surface); border-bottom-color: var(--surface);
+    border-left-color: var(--surface); border-right-color: var(--surface);
+  }
+  .spot-popup .maplibregl-popup-close-button { color: var(--text-muted); font-size: 16px; padding: 4px 8px; }
+  .spot-popup .maplibregl-popup-close-button:hover { background: var(--surface-alt2); }
+
   @media (prefers-reduced-motion: reduce) { .hero { transition: none; } }
 </style>
 </head>
@@ -594,6 +629,9 @@
 
   function saveFavoritesList() {
     try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch (e) {}
+    // radarMap is declared later in the file, but this only ever runs from click handlers that
+    // fire well after the whole script has executed once, so it's always initialized by then.
+    if (radarMap) renderFavoriteMapPins();
   }
 
   function sameSpot(a, b) {
@@ -629,6 +667,16 @@
     renderFavoritesUI();
   }
 
+  // Absent/true means "shown" (opt-out model) so favorites created before this feature existed
+  // don't need a migration step — they're just treated as shown until toggled off.
+  function toggleFavoriteShowOnMap(index) {
+    const f = favorites[index];
+    if (!f) return;
+    f.showOnMap = f.showOnMap === false;
+    saveFavoritesList();
+    renderFavoritesUI();
+  }
+
   function selectFavorite(index) {
     const f = favorites[index];
     if (!f) return;
@@ -653,14 +701,21 @@
     }
     favoritesListEl.innerHTML = favorites.map((f, i) => {
       const isCurrent = sameSpot(f, lastCoords);
+      const shownOnMap = f.showOnMap !== false;
       return `
         <div class="favorite-row">
-          <button type="button" class="favorite-select ${isCurrent ? 'current' : ''}" data-index="${i}">${f.name}</button>
-          <div class="favorite-actions">
-            <button type="button" class="fav-reorder-btn" data-dir="-1" data-index="${i}" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
-            <button type="button" class="fav-reorder-btn" data-dir="1" data-index="${i}" aria-label="Move down" ${i === favorites.length - 1 ? 'disabled' : ''}>&darr;</button>
-            <button type="button" class="fav-delete-btn" data-index="${i}" aria-label="Remove">&times;</button>
+          <div class="favorite-row-main">
+            <button type="button" class="favorite-select ${isCurrent ? 'current' : ''}" data-index="${i}">${f.name}</button>
+            <div class="favorite-actions">
+              <button type="button" class="fav-reorder-btn" data-dir="-1" data-index="${i}" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+              <button type="button" class="fav-reorder-btn" data-dir="1" data-index="${i}" aria-label="Move down" ${i === favorites.length - 1 ? 'disabled' : ''}>&darr;</button>
+              <button type="button" class="fav-delete-btn" data-index="${i}" aria-label="Remove">&times;</button>
+            </div>
           </div>
+          <label class="favorite-map-toggle">
+            <span>Show on radar map</span>
+            <button type="button" class="switch switch-sm fav-map-switch ${shownOnMap ? 'on' : ''}" data-index="${i}" role="switch" aria-checked="${shownOnMap}" aria-label="Show ${f.name} on radar map"><span class="switch-knob"></span></button>
+          </label>
         </div>
       `;
     }).join('');
@@ -669,6 +724,8 @@
   favoritesListEl.addEventListener('click', (e) => {
     const selectBtn = e.target.closest('.favorite-select');
     if (selectBtn) { selectFavorite(parseInt(selectBtn.dataset.index, 10)); return; }
+    const mapSwitch = e.target.closest('.fav-map-switch');
+    if (mapSwitch) { toggleFavoriteShowOnMap(parseInt(mapSwitch.dataset.index, 10)); return; }
     const reorderBtn = e.target.closest('.fav-reorder-btn');
     if (reorderBtn && !reorderBtn.disabled) { moveFavorite(parseInt(reorderBtn.dataset.index, 10), parseInt(reorderBtn.dataset.dir, 10)); return; }
     const deleteBtn = e.target.closest('.fav-delete-btn');
@@ -2243,6 +2300,10 @@
   let radarFramePlaying = true;
   let radarFrameTimer = null;
 
+  let inspectorMarker = null;
+  let inspectorPopup = null; // shared by both the tap-inspector and favorite-pin popups — only one open at a time
+  let favoriteMarkers = []; // [{ marker, el, fav, data }]
+
   // Free-tier key, currently unsecured (fine for local testing per MapTiler's own guidance —
   // see docs.maptiler.com/guides/.../how-to-protect-your-map-key). Add this domain to the key's
   // "Allowed HTTP origins" in the MapTiler dashboard once this is actually deployed somewhere.
@@ -2269,12 +2330,14 @@
     radarMap.on('load', () => {
       loadRainRadar();
       loadWindGrid(start, spanForZoom(radarMap.getZoom()));
+      renderFavoriteMapPins();
       positionWindCanvas();
       setRadarLayerMode(radarLayerMode);
     });
     radarMap.on('resize', positionWindCanvas);
     radarMap.on('movestart', clearWindCanvas);
     radarMap.on('moveend', handleRadarMapMoveEnd);
+    radarMap.on('click', (e) => showInspectorAt(e.lngLat.lat, e.lngLat.lng));
   }
 
   function currentRadarCenter() {
@@ -2610,6 +2673,133 @@
          <span class="legend-item"><span class="legend-dot" style="background:#E3A857;"></span>Moderate</span>
          <span class="legend-item"><span class="legend-dot" style="background:#C4633F;"></span>Heavy</span>`
       : `<span class="legend-item"><span class="legend-dot" style="background:${chartTheme().text};"></span>Wind flow (streaks show speed &amp; direction)</span>`;
+  }
+
+  // ---- Tap-to-inspect + favorite pins on the radar map ----
+  // Both reuse the same plain Open-Meteo point forecast the rest of the app already runs on —
+  // no new data source, and this doesn't touch the MapTiler session/request quota at all.
+  function compassDir(deg) {
+    if (deg === null || deg === undefined || isNaN(deg)) return '';
+    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return dirs[Math.round(deg / 45) % 8];
+  }
+
+  async function fetchSpotConditions(lat, lon) {
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}` +
+        `&current=precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability&forecast_days=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const nowHour = `${utcDateStr(new Date())}T${utcHourStr(new Date())}`;
+      const hIdx = data.hourly ? data.hourly.time.indexOf(nowHour) : -1;
+      return {
+        precipNow: data.current.precipitation,
+        windSpeedKmh: data.current.wind_speed_10m,
+        windDirDeg: data.current.wind_direction_10m,
+        precipProbability: hIdx !== -1 ? data.hourly.precipitation_probability[hIdx] : null,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function spotPopupHtml(name, data) {
+    if (!data) return `<div class="cursor-time">${name}</div><div class="cursor-row">Loading…</div>`;
+    const rainText = (data.precipProbability !== null && data.precipProbability !== undefined)
+      ? `${Math.round(data.precipProbability)}% chance` + (data.precipNow > 0 ? ` · ${data.precipNow.toFixed(1)}mm now` : '')
+      : '--';
+    const windText = `${fmtWind(data.windSpeedKmh)}${windUnitLabel()} ${compassDir(data.windDirDeg)}`;
+    return `
+      <div class="cursor-time">${name}</div>
+      <div class="cursor-row"><strong>Rain</strong>&nbsp;${rainText}</div>
+      <div class="cursor-row"><strong>Wind</strong>&nbsp;${windText}</div>
+    `;
+  }
+
+  function favoriteMarkerHtml(name, data) {
+    const stats = data
+      ? `${data.precipProbability != null ? Math.round(data.precipProbability) + '%' : '--'} · ${fmtWind(data.windSpeedKmh)}${windUnitLabel()} ${compassDir(data.windDirDeg)}`
+      : 'Loading…';
+    return `<div class="pin-label"><div class="pin-name">${name}</div><div class="pin-stats">${stats}</div></div><div class="pin-dot"></div>`;
+  }
+
+  // Only one popup open at a time, whether it came from a raw tap or a favorite pin.
+  function openSpotPopup(lat, lon, name, data, isInspector) {
+    if (inspectorPopup) inspectorPopup.remove();
+    inspectorPopup = new maplibregl.Popup({ closeButton: true, offset: 16, className: 'spot-popup' })
+      .setLngLat([lon, lat])
+      .setHTML(spotPopupHtml(name, data))
+      .addTo(radarMap);
+    if (isInspector) {
+      inspectorPopup.on('close', () => { if (inspectorMarker) inspectorMarker.remove(); });
+    }
+  }
+
+  async function showInspectorAt(lat, lon) {
+    if (!radarMap) return;
+    if (!inspectorMarker) {
+      const el = document.createElement('div');
+      el.className = 'spot-marker spot-marker-inspector';
+      inspectorMarker = new maplibregl.Marker({ element: el });
+    }
+    inspectorMarker.setLngLat([lon, lat]).addTo(radarMap);
+    openSpotPopup(lat, lon, 'Dropped pin', null, true);
+    const data = await fetchSpotConditions(lat, lon);
+    if (inspectorPopup) inspectorPopup.setHTML(spotPopupHtml('Dropped pin', data));
+  }
+
+  function clearFavoriteMarkers() {
+    favoriteMarkers.forEach(entry => entry.marker.remove());
+    favoriteMarkers = [];
+  }
+
+  // Shows every favorite with showOnMap !== false as its own pin+label, batching all of them
+  // into a single Open-Meteo request (same multi-location trick the wind grid already uses)
+  // rather than one request per favorite.
+  async function renderFavoriteMapPins() {
+    if (!radarMap) return;
+    clearFavoriteMarkers();
+    const shown = favorites.filter(f => f.showOnMap !== false);
+    if (!shown.length) return;
+
+    shown.forEach(f => {
+      const el = document.createElement('div');
+      el.className = 'spot-marker spot-marker-favorite';
+      el.innerHTML = favoriteMarkerHtml(f.name, null);
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([f.lon, f.lat]).addTo(radarMap);
+      const entry = { marker, el, fav: f, data: null };
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSpotPopup(f.lat, f.lon, f.name, entry.data);
+      });
+      favoriteMarkers.push(entry);
+    });
+
+    const lats = shown.map(f => f.lat.toFixed(4)).join(',');
+    const lons = shown.map(f => f.lon.toFixed(4)).join(',');
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}` +
+        `&current=precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability&forecast_days=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [data];
+      const nowHour = `${utcDateStr(new Date())}T${utcHourStr(new Date())}`;
+      list.forEach((pt, i) => {
+        const entry = favoriteMarkers[i];
+        if (!entry || !pt || !pt.current) return;
+        const hIdx = pt.hourly ? pt.hourly.time.indexOf(nowHour) : -1;
+        entry.data = {
+          precipNow: pt.current.precipitation,
+          windSpeedKmh: pt.current.wind_speed_10m,
+          windDirDeg: pt.current.wind_direction_10m,
+          precipProbability: hIdx !== -1 ? pt.hourly.precipitation_probability[hIdx] : null,
+        };
+        entry.el.innerHTML = favoriteMarkerHtml(entry.fav.name, entry.data);
+      });
+    } catch (e) {
+      // markers keep their "Loading…" placeholder — acceptable, and rare given this reuses the
+      // same free endpoint the rest of the app already depends on
+    }
   }
 
   // ---- Restore a saved location on load, if any ----

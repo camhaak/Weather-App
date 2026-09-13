@@ -384,8 +384,6 @@
     height: 420px; background: var(--surface-alt2);
   }
   .radar-map { position: absolute; inset: 0; }
-  .radar-map-scrim { position: absolute; inset: 0; background: rgba(8,12,26,0.4); pointer-events: none; }
-  .radar-map-scrim[hidden] { display: none; }
   .wind-canvas { position: absolute; inset: 0; pointer-events: none; }
   .radar-frame-bar { display: flex; align-items: center; gap: 10px; }
   .radar-play-btn {
@@ -512,7 +510,6 @@
     </div>
     <div class="radar-map-wrap">
       <div class="radar-map" id="radarMap"></div>
-      <div class="radar-map-scrim" id="radarMapScrim" hidden></div>
       <canvas class="wind-canvas" id="windCanvas"></canvas>
     </div>
     <div class="radar-frame-bar">
@@ -2246,6 +2243,11 @@
   let radarFramePlaying = true;
   let radarFrameTimer = null;
 
+  // Free-tier key, currently unsecured (fine for local testing per MapTiler's own guidance —
+  // see docs.maptiler.com/guides/.../how-to-protect-your-map-key). Add this domain to the key's
+  // "Allowed HTTP origins" in the MapTiler dashboard once this is actually deployed somewhere.
+  const MAPTILER_KEY = 'orzmpfAPTl3zFLKzlriw';
+
   function initRadarMap() {
     if (radarMap) { radarMap.resize(); return; }
     if (typeof maplibregl === 'undefined') {
@@ -2253,24 +2255,13 @@
       return;
     }
     const start = currentRadarCenter();
-    // Plain OpenStreetMap raster tiles — the one basemap source that's reliably free and
-    // keyless. CARTO's free basemaps (tried first) now watermark their tiles "API key required",
-    // so swap this for a proper key-based provider (MapTiler/Stadia both have free tiers) once a
-    // nicer dark-themed basemap actually matters.
+    // "backdrop-dark" — MapTiler's minimal data-overlay basemap. Compared side-by-side against
+    // dataviz-dark/streets-v2-dark/basic-v2-dark, this one recedes into the background best,
+    // which is what a radar/wind overlay actually needs (the busier street-map styles compete
+    // with the overlay colors instead of setting them off).
     radarMap = new maplibregl.Map({
       container: 'radarMap',
-      style: {
-        version: 8,
-        sources: {
-          basemap: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
-          },
-        },
-        layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
-      },
+      style: `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${MAPTILER_KEY}`,
       center: [start.lon, start.lat],
       zoom: 7,
     });
@@ -2280,7 +2271,6 @@
       loadWindGrid(start, spanForZoom(radarMap.getZoom()));
       positionWindCanvas();
       setRadarLayerMode(radarLayerMode);
-      document.getElementById('radarMapScrim').hidden = false;
     });
     radarMap.on('resize', positionWindCanvas);
     radarMap.on('movestart', clearWindCanvas);

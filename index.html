@@ -2684,19 +2684,28 @@
     return dirs[Math.round(deg / 45) % 8];
   }
 
+  // "Now" expressed in a location's own local calendar day — needed for the daily rainfall
+  // total, which Open-Meteo aggregates per local day (via timezone=auto), not per UTC day.
+  function localNowParts(utcOffsetSeconds) {
+    const shifted = new Date(Date.now() + (utcOffsetSeconds || 0) * 1000);
+    return { dateStr: shifted.toISOString().slice(0, 10), hourStr: String(shifted.getUTCHours()).padStart(2, '0') + ':00' };
+  }
+
   async function fetchSpotConditions(lat, lon) {
     try {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}` +
-        `&current=precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability&forecast_days=1`;
+        `&current=precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability` +
+        `&daily=precipitation_sum&forecast_days=1&timezone=auto`;
       const res = await fetch(url);
       const data = await res.json();
-      const nowHour = `${utcDateStr(new Date())}T${utcHourStr(new Date())}`;
-      const hIdx = data.hourly ? data.hourly.time.indexOf(nowHour) : -1;
+      const { dateStr, hourStr } = localNowParts(data.utc_offset_seconds);
+      const hIdx = data.hourly ? data.hourly.time.indexOf(`${dateStr}T${hourStr}`) : -1;
       return {
         precipNow: data.current.precipitation,
         windSpeedKmh: data.current.wind_speed_10m,
         windDirDeg: data.current.wind_direction_10m,
         precipProbability: hIdx !== -1 ? data.hourly.precipitation_probability[hIdx] : null,
+        dailyRainfall: data.daily && data.daily.precipitation_sum ? data.daily.precipitation_sum[0] : null,
       };
     } catch (e) {
       return null;
@@ -2708,10 +2717,12 @@
     const rainText = (data.precipProbability !== null && data.precipProbability !== undefined)
       ? `${Math.round(data.precipProbability)}% chance` + (data.precipNow > 0 ? ` · ${data.precipNow.toFixed(1)}mm now` : '')
       : '--';
+    const dailyText = data.dailyRainfall != null ? `${data.dailyRainfall.toFixed(1)}mm expected` : '--';
     const windText = `${fmtWind(data.windSpeedKmh)}${windUnitLabel()} ${compassDir(data.windDirDeg)}`;
     return `
       <div class="cursor-time">${name}</div>
       <div class="cursor-row"><strong>Rain</strong>&nbsp;${rainText}</div>
+      <div class="cursor-row"><strong>Today</strong>&nbsp;${dailyText}</div>
       <div class="cursor-row"><strong>Wind</strong>&nbsp;${windText}</div>
     `;
   }
@@ -2720,7 +2731,8 @@
     const stats = data
       ? `${data.precipProbability != null ? Math.round(data.precipProbability) + '%' : '--'} · ${fmtWind(data.windSpeedKmh)}${windUnitLabel()} ${compassDir(data.windDirDeg)}`
       : 'Loading…';
-    return `<div class="pin-label"><div class="pin-name">${name}</div><div class="pin-stats">${stats}</div></div><div class="pin-dot"></div>`;
+    const dailyLine = data && data.dailyRainfall != null ? `<div class="pin-stats">${data.dailyRainfall.toFixed(1)}mm today</div>` : '';
+    return `<div class="pin-label"><div class="pin-name">${name}</div><div class="pin-stats">${stats}</div>${dailyLine}</div><div class="pin-dot"></div>`;
   }
 
   // Only one popup open at a time, whether it came from a raw tap or a favorite pin.
@@ -2779,20 +2791,22 @@
     const lons = shown.map(f => f.lon.toFixed(4)).join(',');
     try {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}` +
-        `&current=precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability&forecast_days=1`;
+        `&current=precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability` +
+        `&daily=precipitation_sum&forecast_days=1&timezone=auto`;
       const res = await fetch(url);
       const data = await res.json();
       const list = Array.isArray(data) ? data : [data];
-      const nowHour = `${utcDateStr(new Date())}T${utcHourStr(new Date())}`;
       list.forEach((pt, i) => {
         const entry = favoriteMarkers[i];
         if (!entry || !pt || !pt.current) return;
-        const hIdx = pt.hourly ? pt.hourly.time.indexOf(nowHour) : -1;
+        const { dateStr, hourStr } = localNowParts(pt.utc_offset_seconds);
+        const hIdx = pt.hourly ? pt.hourly.time.indexOf(`${dateStr}T${hourStr}`) : -1;
         entry.data = {
           precipNow: pt.current.precipitation,
           windSpeedKmh: pt.current.wind_speed_10m,
           windDirDeg: pt.current.wind_direction_10m,
           precipProbability: hIdx !== -1 ? pt.hourly.precipitation_probability[hIdx] : null,
+          dailyRainfall: pt.daily && pt.daily.precipitation_sum ? pt.daily.precipitation_sum[0] : null,
         };
         entry.el.innerHTML = favoriteMarkerHtml(entry.fav.name, entry.data);
       });

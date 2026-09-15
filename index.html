@@ -60,17 +60,25 @@
 
   body { margin: 0; font-family: 'Work Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 30px; }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
 
   .app-header { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 20px 0; }
   .app-header-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 
-  .tab-bar { display: flex; gap: 6px; margin: 14px 20px 0; background: var(--surface-alt2); border-radius: 20px; padding: 3px; }
-  .tab-bar button {
-    flex: 1; font-family: 'Work Sans', sans-serif; font-size: 13.5px; font-weight: 500; padding: 8px 0;
-    border: none; border-radius: 16px; background: none; color: var(--text-muted); cursor: pointer;
+  /* Fixed bottom nav, like a native app's tab bar — pinned regardless of scroll, sized/centered
+     to match the app's own max-width rather than stretching edge-to-edge on wider screens. */
+  .tab-bar {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px;
+    display: flex; background: var(--surface); border-top: 1px solid var(--border-soft);
+    box-shadow: 0 -6px 20px rgba(28,37,65,0.12); padding-bottom: env(safe-area-inset-bottom); z-index: 40;
   }
-  .tab-bar button.active { background: var(--accent-strong); color: var(--cream); }
+  .tab-bar button {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-family: 'Work Sans', sans-serif; font-size: 11px; font-weight: 500; padding: 9px 4px 8px;
+    border: none; background: none; color: var(--text-muted); cursor: pointer;
+  }
+  .tab-bar button svg { width: 22px; height: 22px; }
+  .tab-bar button.active { color: var(--accent-strong); }
 
   .location-btn {
     display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%;
@@ -524,23 +532,33 @@
   </div>
 
   <div class="tab-bar" id="tabBar">
-    <button type="button" data-tab="conditions" class="active">Conditions</button>
-    <button type="button" data-tab="radar">Radar</button>
+    <button type="button" data-tab="weather" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="9" r="3.2"/><path d="M8 2.5v2M13.5 4.5l-1.4 1.4M2.5 9h2" stroke-linecap="round"/><path d="M6 20h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 20Z"/></svg>
+      <span>Weather</span>
+    </button>
+    <button type="button" data-tab="rainfall">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 14h11a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.7A3.8 3.8 0 0 0 6 14Z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" stroke-linecap="round"/></svg>
+      <span>Rainfall</span>
+    </button>
+    <button type="button" data-tab="wind">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7.5h10.5a2.3 2.3 0 1 0-1.8-3.7"/><path d="M3 12h14.5a2.6 2.6 0 1 1-2 4.2"/><path d="M3 16.5h8a2 2 0 1 1-1.6 3.2"/></svg>
+      <span>Wind</span>
+    </button>
+    <button type="button" data-tab="solunar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16.5 3.5a8.5 8.5 0 1 0 0 17 7 7 0 0 1 0-17Z"/><circle cx="6.5" cy="7" r="1" fill="currentColor" stroke="none"/></svg>
+      <span>Solunar</span>
+    </button>
   </div>
 
-  <div id="conditionsTab">
+  <div id="datedContentWrap">
     <div id="dayPickerWrap"></div>
     <div id="content">
       <div class="status" id="status">Search a spot or use your location to see fishing conditions — past week through the next two.</div>
     </div>
   </div>
 
-  <div class="radar-tab" id="radarTab" hidden>
+  <div class="radar-tab" id="mapSection" hidden>
     <div class="radar-toolbar">
-      <div class="trend-toggle" id="radarLayerToggle">
-        <button type="button" data-layer="rain" class="active">Rain</button>
-        <button type="button" data-layer="wind">Wind</button>
-      </div>
       <span class="radar-status" id="radarStatus"></span>
     </div>
     <div class="radar-map-wrap">
@@ -553,7 +571,7 @@
       <span class="radar-frame-label" id="radarFrameLabel">Now</span>
     </div>
     <p class="radar-legend" id="radarLegend"></p>
-    <p class="radar-note">Prototype: rain radar is live (RainViewer). Wind is a live but coarse regional snapshot built from Open-Meteo point data, not a true gridded wind model — good enough to judge the look and feel.</p>
+    <p class="radar-note">Rain radar is live (RainViewer). Wind is a live but coarse regional snapshot built from Open-Meteo point data, not a true gridded wind model — good enough to judge the look and feel.</p>
   </div>
 
 </div>
@@ -581,8 +599,8 @@
   const favToggleBtn = document.getElementById('favToggleBtn');
   const favoritesListEl = document.getElementById('favoritesList');
   const tabBar = document.getElementById('tabBar');
-  const conditionsTab = document.getElementById('conditionsTab');
-  const radarTab = document.getElementById('radarTab');
+  const datedContentWrap = document.getElementById('datedContentWrap');
+  const mapSection = document.getElementById('mapSection');
 
   const SAVED_LOCATION_KEY = 'tideAndTime.savedLocation';
 
@@ -2075,19 +2093,24 @@
       ? `<div class="value">${fmtWave(m.waveHeight)}<span class="unit">${waveUnitLabel()}</span></div>`
       : `<div class="value" style="font-size:14px; color:var(--text-muted); font-weight:400;">${m.marineAvailable ? 'No data' : 'Outside forecast range'}</div>`;
 
-    const condHtml = `
+    // Split out of the old single "Fishing conditions" panel now that wind has its own tab —
+    // pressure/water/waves stay on the Weather tab (water & waves are a placeholder home until
+    // there's an actual Tides & Swell tab to move them into).
+    const weatherCondHtml = `
       <div class="cond-grid">
         <div class="cond-item">
           <div class="label">Pressure</div>
           <div class="value">${fmtPressure(m.pressureNow)}<span class="unit">${pressureUnitLabel()}</span> <span class="trend-arrow ${m.trend.cls}">${m.trend.arrow}</span></div>
           <div class="note" style="margin-top:2px;">${m.trend.label}</div>
         </div>
-        <div class="cond-item">
-          <div class="label">Wind</div>
-          <div class="value">${fmtWind(m.windAt)}<span class="unit">${windUnitLabel()}</span></div>
-        </div>
         <div class="cond-item"><div class="label">Water temp</div>${waterTempHtml}</div>
         <div class="cond-item"><div class="label">Wave height</div>${waveHtml}</div>
+      </div>
+    `;
+    const windCondHtml = `
+      <div class="cond-item">
+        <div class="label">Speed</div>
+        <div class="value">${fmtWind(m.windAt)}<span class="unit">${windUnitLabel()}</span></div>
       </div>
     `;
 
@@ -2178,47 +2201,53 @@
     `;
 
     contentEl.innerHTML = `
-      <div class="hero" style="background:${colors.bg}">
-        <div class="hero-nav">
-          <button class="hero-arrow" id="prevDayBtn" ${canPrev ? '' : 'disabled'} aria-label="Previous day">‹</button>
-          <div>
-            <div class="hero-glyph" style="color:${colors.accent}">${glyphFor(m.desc.kind, colors.accent)}</div>
-            <p class="hero-location">${lastCoords.name} · ${dateLabel}</p>
-            <p class="hero-date-tag">${heroTag}</p>
+      <div id="weatherContent" ${activeTab !== 'weather' ? 'hidden' : ''}>
+        <div class="hero" style="background:${colors.bg}">
+          <div class="hero-nav">
+            <button class="hero-arrow" id="prevDayBtn" ${canPrev ? '' : 'disabled'} aria-label="Previous day">‹</button>
+            <div>
+              <div class="hero-glyph" style="color:${colors.accent}">${glyphFor(m.desc.kind, colors.accent)}</div>
+              <p class="hero-location">${lastCoords.name} · ${dateLabel}</p>
+              <p class="hero-date-tag">${heroTag}</p>
+            </div>
+            <button class="hero-arrow" id="nextDayBtn" ${canNext ? '' : 'disabled'} aria-label="Next day">›</button>
           </div>
-          <button class="hero-arrow" id="nextDayBtn" ${canNext ? '' : 'disabled'} aria-label="Next day">›</button>
+          <p class="hero-temp">${fmtTemp(m.repTemp)}</p>
+          <p class="hero-condition" style="color:${colors.accent}">${m.desc.text}</p>
+          <div class="hero-meta"><span>High ${fmtTemp(m.hi)}</span><span>Low ${fmtTemp(m.lo)}</span></div>
         </div>
-        <p class="hero-temp">${fmtTemp(m.repTemp)}</p>
-        <p class="hero-condition" style="color:${colors.accent}">${m.desc.text}</p>
-        <div class="hero-meta"><span>High ${fmtTemp(m.hi)}</span><span>Low ${fmtTemp(m.lo)}</span></div>
+
+        <p class="section-label">Compare days <span class="sub">scroll to see more →</span></p>
+        ${compareHtml}
+
+        <p class="section-label outlook-label">
+          <span>${outlookView === 'daily' ? 'Through the day' : 'This week at a glance'}</span>
+          <span class="outlook-label-sep">|</span>
+          <span class="outlook-toggle" id="outlookToggle">
+            <button data-view="daily" class="${outlookView === 'daily' ? 'active' : ''}">Daily</button>
+            <button data-view="weekly" class="${outlookView === 'weekly' ? 'active' : ''}">Weekly</button>
+          </span>
+        </p>
+        ${outlookView === 'daily'
+          ? `<div class="hourly-strip">${hourlyHtml}</div>`
+          : `<div class="daily-list">${dailyHtml}</div>`}
+
+        ${renderTrendPanel()}
+
+        <div class="panel"><p class="panel-title">Conditions</p>${weatherCondHtml}</div>
+
+        <p class="coverage-note">Weather covers roughly the past week through the next two. Sea temp and wave height cover a shorter window since ocean models forecast less far ahead — both are a placeholder home here until there's a dedicated Tides &amp; Swell tab.</p>
       </div>
 
-      <p class="section-label">Compare days <span class="sub">scroll to see more →</span></p>
-      ${compareHtml}
+      <div id="windContent" ${activeTab !== 'wind' ? 'hidden' : ''}>
+        <div class="panel"><p class="panel-title">Wind</p>${windCondHtml}</div>
+      </div>
 
-      <p class="section-label outlook-label">
-        <span>${outlookView === 'daily' ? 'Through the day' : 'This week at a glance'}</span>
-        <span class="outlook-label-sep">|</span>
-        <span class="outlook-toggle" id="outlookToggle">
-          <button data-view="daily" class="${outlookView === 'daily' ? 'active' : ''}">Daily</button>
-          <button data-view="weekly" class="${outlookView === 'weekly' ? 'active' : ''}">Weekly</button>
-        </span>
-      </p>
-      ${outlookView === 'daily'
-        ? `<div class="hourly-strip">${hourlyHtml}</div>`
-        : `<div class="daily-list">${dailyHtml}</div>`}
-
-      ${renderTrendPanel()}
-
-      <div class="panel"><p class="panel-title">Sun &amp; moon</p>${sunMoonHtml}</div>
-
-      <div class="panel"><p class="panel-title">Fishing conditions</p>${condHtml}</div>
-
-      ${renderSunMoonPanel()}
-
-      <div class="panel"><p class="panel-title">Solunar periods</p>${solunarHtml}</div>
-
-      <p class="coverage-note">Weather covers roughly the past week through the next two. Sea temp and wave height cover a shorter window since ocean models forecast less far ahead. Moon and solunar times work for any date.</p>
+      <div id="sunMoonContent" ${activeTab !== 'solunar' ? 'hidden' : ''}>
+        <div class="panel"><p class="panel-title">Sun &amp; moon</p>${sunMoonHtml}</div>
+        ${renderSunMoonPanel()}
+        <div class="panel"><p class="panel-title">Solunar periods</p>${solunarHtml}</div>
+      </div>
     `;
 
     document.getElementById('prevDayBtn').addEventListener('click', () => shiftDate(-1));
@@ -2258,7 +2287,7 @@
   }
 
   // ---- Tabs (prototype: Conditions vs. Radar map) ----
-  let activeTab = 'conditions';
+  let activeTab = 'weather';
 
   tabBar.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-tab]');
@@ -2266,12 +2295,31 @@
     setActiveTab(btn.dataset.tab);
   });
 
+  // "weather" and "solunar" share the dated content area (#content, rebuilt by renderForDate)
+  // via inner #weatherContent/#sunMoonContent wrappers; "wind" also uses it for its current-
+  // conditions card (#windContent) but otherwise shows the map, same as "rainfall". The map
+  // itself is one shared MapLibre instance (see initRadarMap) — switching between the rainfall
+  // and wind tabs just changes which layer it shows, rather than creating a second map.
   function setActiveTab(tab) {
     activeTab = tab;
     tabBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    conditionsTab.hidden = tab !== 'conditions';
-    radarTab.hidden = tab !== 'radar';
-    if (tab === 'radar') initRadarMap();
+    datedContentWrap.hidden = tab === 'rainfall';
+    mapSection.hidden = !(tab === 'rainfall' || tab === 'wind');
+    const weatherContent = document.getElementById('weatherContent');
+    const windContent = document.getElementById('windContent');
+    const sunMoonContent = document.getElementById('sunMoonContent');
+    if (weatherContent) weatherContent.hidden = tab !== 'weather';
+    if (windContent) windContent.hidden = tab !== 'wind';
+    if (sunMoonContent) sunMoonContent.hidden = tab !== 'solunar';
+    if (tab === 'rainfall' || tab === 'wind') {
+      setRadarLayerMode(tab === 'rainfall' ? 'rain' : 'wind');
+      initRadarMap();
+    }
+    // A chart's scroll-to-focus math needs real layout, which a hidden (display:none) element
+    // doesn't have — recentering here catches charts that scrolled themselves while their tab
+    // was still hidden (e.g. changing date while on the Wind tab redraws all three at once).
+    if (tab === 'weather' && weatherData) scrollTrendToFocus(false);
+    if (tab === 'solunar' && weatherData) scrollSunMoonToFocus(false);
   }
 
   // ---- Radar/wind map (prototype) ----
@@ -2634,15 +2682,9 @@
     windAnimRAF = requestAnimationFrame(windAnimStep);
   }
 
-  document.getElementById('radarLayerToggle').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-layer]');
-    if (!btn) return;
-    setRadarLayerMode(btn.dataset.layer);
-  });
-
+  // Driven by setActiveTab (the Rainfall/Wind tab selection) now, rather than a toggle of its own.
   function setRadarLayerMode(mode) {
     radarLayerMode = mode;
-    document.querySelectorAll('#radarLayerToggle button').forEach(b => b.classList.toggle('active', b.dataset.layer === mode));
     const canvas = document.getElementById('windCanvas');
     if (canvas) canvas.style.display = mode === 'wind' ? 'block' : 'none';
     if (radarMap && radarMap.getLayer('rain-layer')) {

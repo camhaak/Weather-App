@@ -276,7 +276,7 @@
   /* Compare table */
   .compare-wrap { display: flex; margin: 6px 20px 0; background: var(--surface); border-radius: 16px; border: 1.5px solid var(--border-soft); overflow: hidden; }
   .compare-labels { flex: 0 0 auto; width: 92px; border-right: 1.5px solid var(--border-soft); }
-  .compare-scroll { flex: 1; overflow-x: auto; scrollbar-width: none; }
+  .compare-scroll { position: relative; flex: 1; overflow-x: auto; scrollbar-width: none; }
   .compare-scroll::-webkit-scrollbar { display: none; }
   .compare-cols { display: flex; }
 

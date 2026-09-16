@@ -243,8 +243,9 @@
       col.addEventListener('click', () => selectDate(col.dataset.date, true));
     });
 
-    // Keep the selected compare column in view (horizontally only)
+    // Keep the selected compare column fully in view, with a small peek of the previous column
+    // (rather than centered) so it's clear on first load that the table scrolls in both directions.
     const selCol = document.querySelector('.compare-col.selected');
-    centerHorizontally(document.getElementById('compareScroll'), selCol, false);
+    scrollNearStart(document.getElementById('compareScroll'), selCol, 24, false);
   }
 

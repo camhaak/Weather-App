@@ -110,8 +110,8 @@
       dayMetricsCache.clear(); // new data means every date's cached metrics are now stale
       todayStr = weatherData.current.time.split('T')[0];
       selectedDateStr = todayStr;
-      sunMoonCursorTime = new Date(weatherData.current.time); // reset to "now" for whatever spot just loaded
-      trendCursorTime = new Date(weatherData.current.time);
+      sunMoonState.cursorTime = new Date(weatherData.current.time); // reset to "now" for whatever spot just loaded
+      trendState.cursorTime = new Date(weatherData.current.time);
       saveLocation({ lat, lon, name });
       buildDayPicker();
       renderForDate(selectedDateStr);
@@ -155,8 +155,8 @@
     selectedDateStr = dateStr;
     // Move both charts' cursors to the newly selected date, keeping their time-of-day, so they
     // follow the date picker instead of staying parked on whatever day they were on before.
-    sunMoonCursorTime = withDate(sunMoonCursorTime || new Date(weatherData.current.time), dateStr);
-    trendCursorTime = withDate(trendCursorTime || new Date(weatherData.current.time), dateStr);
+    sunMoonState.cursorTime = withDate(sunMoonState.cursorTime || new Date(weatherData.current.time), dateStr);
+    trendState.cursorTime = withDate(trendState.cursorTime || new Date(weatherData.current.time), dateStr);
     document.querySelectorAll('.day-chip').forEach(b => b.classList.toggle('selected', b.dataset.date === dateStr));
     renderForDate(dateStr, true);
     if (scrollChipIntoView) {

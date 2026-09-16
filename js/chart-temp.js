@@ -55,7 +55,7 @@
       if (tm >= wStart.getTime() && tm <= wEnd.getTime()) pts.push({ t: tm, v: toDisplayTemp(weatherData.hourly.temperature_2m[i]) });
     });
     const vals = pts.map(p => p.v).filter(v => v !== null);
-    if (vals.length === 0) { trendChartMeta = null; return '<div class="status" style="padding:30px 0;">No data available.</div>'; }
+    if (vals.length === 0) { trendState.chartMeta = null; return '<div class="status" style="padding:30px 0;">No data available.</div>'; }
     const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
     const { ticks: yTicks, min: minV, max: maxV } = niceTempTicks(rawMin, rawMax === rawMin ? rawMax + 1 : rawMax);
     const yScale = v => plotTop + (1 - (v - minV) / (maxV - minV)) * plotH;
@@ -95,7 +95,7 @@
     // Interactive crosshair cursor: snaps to the nearest actual hourly sample (rather than
     // interpolating) so the dot always sits exactly on the plotted line and the legend below
     // always describes a real data point.
-    const cursorTime = trendCursorTime || new Date(weatherData.current.time);
+    const cursorTime = trendState.cursorTime || new Date(weatherData.current.time);
     let cursorHtml = '';
     const cursorIdx = Math.round((cursorTime.getTime() - wStart.getTime()) / 3600000);
     const cursorPt = pts[Math.max(0, Math.min(pts.length - 1, cursorIdx))];
@@ -123,13 +123,13 @@
       ${cursorHtml}${hourTicks}${dayLabels}
     </svg>`;
 
-    trendChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, minV, maxV, plotTop, plotH, pts };
+    trendState.chartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, minV, maxV, plotTop, plotH, pts };
     return svg;
   }
 
   function trendYAxisLabelsHtml() {
-    if (!trendChartMeta) return '';
-    const { minV, maxV, plotTop, plotH } = trendChartMeta;
+    if (!trendState.chartMeta) return '';
+    const { minV, maxV, plotTop, plotH } = trendState.chartMeta;
     const { ticks } = niceTempTicks(minV, maxV);
     return ticks.map(tv => {
       const y = plotTop + (1 - (tv - minV) / (maxV - minV)) * plotH;
@@ -149,15 +149,15 @@
   }
 
   function updateTrendCursor(time) {
-    if (trendChartMeta) {
-      const clampedMs = Math.min(trendChartMeta.wEndMs, Math.max(trendChartMeta.wStartMs, time.getTime()));
+    if (trendState.chartMeta) {
+      const clampedMs = Math.min(trendState.chartMeta.wEndMs, Math.max(trendState.chartMeta.wStartMs, time.getTime()));
       time = new Date(clampedMs);
-      const idx = Math.round((time.getTime() - trendChartMeta.wStartMs) / 3600000);
-      const pt = trendChartMeta.pts[Math.max(0, Math.min(trendChartMeta.pts.length - 1, idx))];
+      const idx = Math.round((time.getTime() - trendState.chartMeta.wStartMs) / 3600000);
+      const pt = trendState.chartMeta.pts[Math.max(0, Math.min(trendState.chartMeta.pts.length - 1, idx))];
       if (pt) {
         time = new Date(pt.t); // snap exactly onto the sampled hour, so the dot and legend always agree
-        const x = ((pt.t - trendChartMeta.wStartMs) / 3600000) * trendChartMeta.pph;
-        const y = trendChartMeta.plotTop + (1 - (pt.v - trendChartMeta.minV) / (trendChartMeta.maxV - trendChartMeta.minV)) * trendChartMeta.plotH;
+        const x = ((pt.t - trendState.chartMeta.wStartMs) / 3600000) * trendState.chartMeta.pph;
+        const y = trendState.chartMeta.plotTop + (1 - (pt.v - trendState.chartMeta.minV) / (trendState.chartMeta.maxV - trendState.chartMeta.minV)) * trendState.chartMeta.plotH;
         const xLine = document.getElementById('trendCursorX');
         const yLine = document.getElementById('trendCursorY');
         const dot = document.getElementById('trendCursorDot');
@@ -168,7 +168,7 @@
         if (handle) handle.setAttribute('x', x - 12);
       }
     }
-    trendCursorTime = time;
+    trendState.cursorTime = time;
     const infoEl = document.getElementById('trendCursorInfo');
     if (infoEl) infoEl.innerHTML = trendCursorInfoHtml(time);
   }
@@ -179,8 +179,8 @@
     const days = weatherData.daily.time;
     const wStart = new Date(days[0] + 'T00:00:00');
     const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
-    const pph = trendPPH(trendRange);
-    const cursor = trendCursorTime || new Date(weatherData.current.time);
+    const pph = trendPPH(trendState.range);
+    const cursor = trendState.cursorTime || new Date(weatherData.current.time);
     const focusTime = (cursor >= wStart && cursor <= wEnd) ? cursor : new Date(selectedDateStr + 'T12:00:00');
     const x = ((focusTime - wStart) / 3600000) * pph;
     const left = Math.max(0, x - wrap.clientWidth / 2);
@@ -197,11 +197,11 @@
   function trendTimeFromClientX(clientX) {
     const wrap = document.getElementById('trendChartWrap');
     const svgEl = wrap && wrap.querySelector('svg');
-    if (!svgEl || !trendChartMeta) return null;
+    if (!svgEl || !trendState.chartMeta) return null;
     const rect = svgEl.getBoundingClientRect();
     const scale = svgEl.viewBox.baseVal.width / rect.width;
     const dataX = (clientX - rect.left) * scale;
-    const ms = trendChartMeta.wStartMs + (dataX / trendChartMeta.pph) * 3600000;
+    const ms = trendState.chartMeta.wStartMs + (dataX / trendState.chartMeta.pph) * 3600000;
     return new Date(ms);
   }
 
@@ -216,43 +216,43 @@
 
   function trendAutoScrollStep() {
     const wrap = document.getElementById('trendChartWrap');
-    if (!wrap || !draggingTrendCursor || trendAutoScrollDir === 0) { trendAutoScrollRAF = null; return; }
+    if (!wrap || !trendState.draggingCursor || trendState.autoScrollDir === 0) { trendState.autoScrollRAF = null; return; }
     const maxScroll = wrap.scrollWidth - wrap.clientWidth;
-    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + trendAutoScrollDir * trendAutoScrollSpeed));
-    const time = trendTimeFromClientX(trendLastClientX);
+    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + trendState.autoScrollDir * trendState.autoScrollSpeed));
+    const time = trendTimeFromClientX(trendState.lastClientX);
     if (time) updateTrendCursor(time);
-    trendAutoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
+    trendState.autoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
   }
 
   function updateTrendAutoScroll(clientX) {
     const wrap = document.getElementById('trendChartWrap');
-    if (!wrap) { trendAutoScrollDir = 0; return; }
+    if (!wrap) { trendState.autoScrollDir = 0; return; }
     const rect = wrap.getBoundingClientRect();
     const leftDist = clientX - rect.left;
     const rightDist = rect.right - clientX;
     if (leftDist < TREND_EDGE_ZONE) {
-      trendAutoScrollDir = -1;
-      trendAutoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / TREND_EDGE_ZONE);
+      trendState.autoScrollDir = -1;
+      trendState.autoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / TREND_EDGE_ZONE);
     } else if (rightDist < TREND_EDGE_ZONE) {
-      trendAutoScrollDir = 1;
-      trendAutoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / TREND_EDGE_ZONE);
+      trendState.autoScrollDir = 1;
+      trendState.autoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / TREND_EDGE_ZONE);
     } else {
-      trendAutoScrollDir = 0;
+      trendState.autoScrollDir = 0;
     }
-    if (trendAutoScrollDir !== 0 && !trendAutoScrollRAF) {
-      trendAutoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
+    if (trendState.autoScrollDir !== 0 && !trendState.autoScrollRAF) {
+      trendState.autoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
     }
   }
 
   function stopTrendAutoScroll() {
-    trendAutoScrollDir = 0;
-    if (trendAutoScrollRAF) { cancelAnimationFrame(trendAutoScrollRAF); trendAutoScrollRAF = null; }
+    trendState.autoScrollDir = 0;
+    if (trendState.autoScrollRAF) { cancelAnimationFrame(trendState.autoScrollRAF); trendState.autoScrollRAF = null; }
   }
 
   function handleTrendPointerDown(e) {
     if (e.target.id !== 'trendCursorHandle') return;
-    draggingTrendCursor = true;
-    trendLastClientX = e.clientX;
+    trendState.draggingCursor = true;
+    trendState.lastClientX = e.clientX;
     try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
     e.target.style.cursor = 'grabbing';
     const time = trendTimeFromClientX(e.clientX);
@@ -261,16 +261,16 @@
   }
 
   function handleTrendPointerMove(e) {
-    if (!draggingTrendCursor) return;
-    trendLastClientX = e.clientX;
+    if (!trendState.draggingCursor) return;
+    trendState.lastClientX = e.clientX;
     const time = trendTimeFromClientX(e.clientX);
     if (time) updateTrendCursor(time);
     updateTrendAutoScroll(e.clientX);
   }
 
   function handleTrendPointerUp(e) {
-    if (!draggingTrendCursor) return;
-    draggingTrendCursor = false;
+    if (!trendState.draggingCursor) return;
+    trendState.draggingCursor = false;
     stopTrendAutoScroll();
     if (e.target.id === 'trendCursorHandle') e.target.style.cursor = 'grab';
   }
@@ -280,16 +280,16 @@
   }
 
   function renderTrendPanel() {
-    const svg = buildTrendSVG(trendRange);
-    const cursorTime = trendCursorTime || new Date(weatherData.current.time);
+    const svg = buildTrendSVG(trendState.range);
+    const cursorTime = trendState.cursorTime || new Date(weatherData.current.time);
     return `
       <div class="panel trend-panel">
         <div class="trend-header">
           <p class="panel-title">Temperature trend <span class="sub">${unit === 'celsius' ? '°C' : '°F'}</span><button type="button" class="info-btn" id="trendInfoBtn" aria-label="About this chart">i</button></p>
           <div class="trend-toggle" id="trendToggle">
-            <button data-range="1" class="${trendRange === '1' ? 'active' : ''}">1 Day</button>
-            <button data-range="3" class="${trendRange === '3' ? 'active' : ''}">3 Day</button>
-            <button data-range="7" class="${trendRange === '7' ? 'active' : ''}">Week</button>
+            <button data-range="1" class="${trendState.range === '1' ? 'active' : ''}">1 Day</button>
+            <button data-range="3" class="${trendState.range === '3' ? 'active' : ''}">3 Day</button>
+            <button data-range="7" class="${trendState.range === '7' ? 'active' : ''}">Week</button>
           </div>
         </div>
         <div class="chart-info-popup" id="trendInfoPopup" hidden>

@@ -142,6 +142,10 @@
     updatePlayButton();
     if (radarFrameTimer) clearInterval(radarFrameTimer);
     radarFrameTimer = setInterval(() => {
+      // Same leave-the-map-tabs case as windAnimStep: skip the real work (a tile swap, or a
+      // windGrid reassignment) while hidden, rather than clearing the interval outright — that
+      // way "was it playing" isn't touched, so playback simply resumes where it left off on return.
+      if (mapSection.hidden) return;
       const frames = currentFrameList();
       if (!frames.length) return;
       applyRadarFrame(radarFrameIndex + 1 >= frames.length ? 0 : radarFrameIndex + 1);
@@ -316,7 +320,10 @@
 
   function windAnimStep() {
     const canvas = document.getElementById('windCanvas');
-    if (!canvas || !radarMap || radarLayerMode !== 'wind' || !windGrid) { windAnimRAF = null; return; }
+    // mapSection.hidden catches leaving the Wind tab for Weather/Solunar, which — unlike leaving
+    // for Rainfall — never changes radarLayerMode, so that check alone can't stop this loop; it'd
+    // otherwise keep animating 1200 particles onto a hidden canvas until the Rainfall tab is opened.
+    if (!canvas || !radarMap || radarLayerMode !== 'wind' || !windGrid || mapSection.hidden) { windAnimRAF = null; return; }
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     const cssW = canvas.width / dpr, cssH = canvas.height / dpr;

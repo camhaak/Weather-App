@@ -74,7 +74,16 @@
     return { majors, minors };
   }
 
+  // Aborts any load still in flight before starting a new one, so a slow response to an earlier
+  // search can never win a race against — and overwrite state with stale data from — a more
+  // recent one (e.g. searching two spots back to back on a slow connection).
+  let loadLocationController = null;
+
   async function loadLocation(lat, lon, name) {
+    if (loadLocationController) loadLocationController.abort();
+    const controller = new AbortController();
+    loadLocationController = controller;
+
     lastCoords = { lat, lon, name };
     updateLocationBtnLabel();
     showStatus('Loading conditions…');
@@ -89,11 +98,16 @@
       `&hourly=wave_height,sea_surface_temperature&past_days=5&forecast_days=8&timezone=auto`;
 
     try {
-      const [forecastRes, marineRes] = await Promise.all([fetch(forecastUrl), fetch(marineUrl).catch(() => null)]);
+      const { signal } = controller;
+      const [forecastRes, marineRes] = await Promise.all([
+        fetch(forecastUrl, { signal }),
+        fetch(marineUrl, { signal }).catch(() => null)
+      ]);
       if (!forecastRes.ok) throw new Error('forecast failed');
       weatherData = await forecastRes.json();
       marineData = null;
       if (marineRes && marineRes.ok) { try { marineData = await marineRes.json(); } catch (e) { marineData = null; } }
+      dayMetricsCache.clear(); // new data means every date's cached metrics are now stale
       todayStr = weatherData.current.time.split('T')[0];
       selectedDateStr = todayStr;
       sunMoonCursorTime = new Date(weatherData.current.time); // reset to "now" for whatever spot just loaded
@@ -102,6 +116,7 @@
       buildDayPicker();
       renderForDate(selectedDateStr);
     } catch (err) {
+      if (err.name === 'AbortError') return; // superseded by a newer loadLocation call, not a real failure
       showStatus("Couldn't load conditions. Check your connection and try again.");
     }
   }
@@ -172,7 +187,14 @@
   }
 
   // ---- Compute a compact metrics summary for any date (shared by hero panels + compare table) ----
+  // Cached per date: a single render pass calls this for the same date from both the compare
+  // table and the sun/moon chart, and each call re-runs a ~430-sample solunar computation.
+  // Cleared whenever a new location's data loads (see loadLocation) since results depend on
+  // weatherData/marineData/lastCoords, not on which date is currently selected or displayed.
+  let dayMetricsCache = new Map();
+
   function computeDayMetrics(dateStr) {
+    if (dayMetricsCache.has(dateStr)) return dayMetricsCache.get(dateStr);
     const isToday = dateStr === todayStr;
     const hourlyTimes = weatherData.hourly.time;
 
@@ -183,7 +205,7 @@
     } else {
       repIdx = findIndexForDateHour(hourlyTimes, dateStr, '12:00');
     }
-    if (repIdx === -1) return null;
+    if (repIdx === -1) { dayMetricsCache.set(dateStr, null); return null; }
 
     const repCode = weatherData.hourly.weather_code[repIdx];
     const repTemp = isToday ? weatherData.current.temperature_2m : weatherData.hourly.temperature_2m[repIdx];
@@ -225,6 +247,8 @@
     const dayStart = new Date(dateStr + 'T00:00:00');
     const solunar = computeSolunar(lastCoords.lat, lastCoords.lon, dayStart);
 
-    return { isToday, repIdx, repTemp, desc, pressureNow, trend, windAt, waterTemp, waveHeight, marineAvailable, sunrise, sunset, hi, lo, illum, moonTimesToday, solunar, dayStart, dailyIdx };
+    const result = { isToday, repIdx, repTemp, desc, pressureNow, trend, windAt, waterTemp, waveHeight, marineAvailable, sunrise, sunset, hi, lo, illum, moonTimesToday, solunar, dayStart, dailyIdx };
+    dayMetricsCache.set(dateStr, result);
+    return result;
   }
 

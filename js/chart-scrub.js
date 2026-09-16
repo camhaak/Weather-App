@@ -78,6 +78,7 @@
       if (!weatherData) return;
       updateCursor(new Date(weatherData.current.time));
       scrollToFocus(true);
+      syncSelectedDate();
     }
 
     function handleChartClick(e) {
@@ -85,6 +86,7 @@
       if (e.target.id === cfg.handleId) return;
       const time = resolveTime(e.clientX);
       if (time) updateCursor(time);
+      syncSelectedDate();
     }
 
     function autoScrollStep() {
@@ -157,6 +159,17 @@
       const wrap = document.getElementById(cfg.wrapId);
       if (wrap) wrap.style.touchAction = '';
       suppressNextClick = true;
+      syncSelectedDate();
+    }
+
+    // Only called at the end of a gesture (a tap, a completed drag, or "Today") — never during a
+    // drag itself, since selectDate triggers a full renderForDate that rebuilds this very chart's
+    // SVG, which would destroy the handle element mid-drag. Clicking through a day-picker chip
+    // already had the reverse effect (moving both charts' cursors); this makes it work both ways.
+    function syncSelectedDate() {
+      if (!cfg.state.cursorTime) return;
+      const d = fmtDateStr(cfg.state.cursorTime);
+      if (d !== selectedDateStr) selectDate(d, true);
     }
 
     return {

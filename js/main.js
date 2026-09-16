@@ -24,6 +24,17 @@
     else container.scrollLeft = left;
   }
 
+  // Like centerHorizontally, but leaves `el` near the left edge with just a peek of whatever
+  // comes before it, rather than dead-centered — used for the compare table so today's column
+  // is always fully in view on load with a sliver of yesterday showing, hinting it scrolls both
+  // ways, instead of eating into tomorrow's space to center today for no real benefit.
+  function scrollNearStart(container, el, peekPx, smooth) {
+    if (!container || !el) return;
+    const left = Math.max(0, el.offsetLeft - peekPx);
+    if (smooth) container.scrollTo({ left, behavior: 'smooth' });
+    else container.scrollLeft = left;
+  }
+
   forgetBtn.addEventListener('click', () => {
     clearSavedLocation();
     lastCoords = null;

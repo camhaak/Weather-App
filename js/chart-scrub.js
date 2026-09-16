@@ -23,6 +23,13 @@
   function createScrubbableChart(cfg) {
     const EDGE_ZONE = 50;
     const MAX_SCROLL_SPEED = 14;
+    // A touch sequence that doesn't move far makes the browser synthesize a `click` event after
+    // the pointer events, even though the drag already moved the cursor correctly — and on some
+    // mobile browsers, that synthesized click reports where the touch *started*, not where it
+    // ended, silently snapping the cursor back to the pre-drag position. Since the drag's own
+    // pointer events already handled the move, the click immediately following a handle-involving
+    // pointerdown/pointerup is ignored rather than reprocessed.
+    let suppressNextClick = false;
 
     function timeFromClientX(clientX) {
       const wrap = document.getElementById(cfg.wrapId);
@@ -74,6 +81,7 @@
     }
 
     function handleChartClick(e) {
+      if (suppressNextClick) { suppressNextClick = false; return; }
       if (e.target.id === cfg.handleId) return;
       const time = resolveTime(e.clientX);
       if (time) updateCursor(time);
@@ -116,6 +124,7 @@
 
     function handlePointerDown(e) {
       if (e.target.id !== cfg.handleId) return;
+      suppressNextClick = false; // fresh gesture; only set once this one actually releases
       cfg.state.draggingCursor = true;
       cfg.state.lastClientX = e.clientX;
       try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
@@ -147,6 +156,7 @@
       if (e.target.id === cfg.handleId) e.target.style.cursor = 'grab';
       const wrap = document.getElementById(cfg.wrapId);
       if (wrap) wrap.style.touchAction = '';
+      suppressNextClick = true;
     }
 
     return {

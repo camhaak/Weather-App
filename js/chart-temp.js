@@ -191,7 +191,7 @@
     const svg = buildTrendSVG(trendState.range);
     const cursorTime = trendState.cursorTime || new Date(weatherData.current.time);
     return `
-      <div class="panel trend-panel">
+      <div class="panel trend-panel" id="trendPanel">
         <div class="trend-header">
           <p class="panel-title">Temperature trend <span class="sub">${unit === 'celsius' ? '°C' : '°F'}</span><button type="button" class="info-btn" id="trendInfoBtn" aria-label="About this chart">i</button></p>
           <div class="trend-toggle" id="trendToggle">
@@ -212,5 +212,27 @@
         </div>
       </div>
     `;
+  }
+
+  // Rebuilds only the trend panel's own DOM subtree instead of the whole dated-content area —
+  // used by the zoom-range toggle so switching between 1/3/Week doesn't also recompute the
+  // compare table, hourly/daily outlook, and the (unrelated) sun/moon chart. wireTrendToggle is
+  // its own function, not inlined, because it needs to re-run after every refresh too (the
+  // buttons it binds to are freshly-created elements each time).
+  function wireTrendToggle() {
+    document.querySelectorAll('#trendToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        trendState.range = btn.dataset.range;
+        refreshTrendPanel();
+      });
+    });
+  }
+
+  function refreshTrendPanel() {
+    const el = document.getElementById('trendPanel');
+    if (!el) return;
+    el.outerHTML = renderTrendPanel();
+    wireTrendToggle();
+    trendChart.scrollToFocus(false);
   }
 

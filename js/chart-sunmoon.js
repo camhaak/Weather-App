@@ -285,7 +285,7 @@
     const svg = buildSunMoonChart(sunMoonState.range);
     const cursorTime = sunMoonState.cursorTime || new Date(weatherData.current.time);
     return `
-      <div class="panel trend-panel">
+      <div class="panel trend-panel" id="sunMoonPanel">
         <div class="trend-header">
           <p class="panel-title">Sun, moon &amp; bite times<button type="button" class="info-btn" id="sunMoonInfoBtn" aria-label="About this chart">i</button></p>
           <div class="trend-toggle" id="sunMoonToggle">
@@ -311,6 +311,25 @@
         </div>
       </div>
     `;
+  }
+
+  // Mirrors wireTrendToggle/refreshTrendPanel in chart-temp.js — rebuilds only this panel's own
+  // subtree, so the sun/moon zoom toggle doesn't also touch the compare table or the temp chart.
+  function wireSunMoonToggle() {
+    document.querySelectorAll('#sunMoonToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sunMoonState.range = btn.dataset.range;
+        refreshSunMoonPanel();
+      });
+    });
+  }
+
+  function refreshSunMoonPanel() {
+    const el = document.getElementById('sunMoonPanel');
+    if (!el) return;
+    el.outerHTML = renderSunMoonPanel();
+    wireSunMoonToggle();
+    sunMoonChart.scrollToFocus(false);
   }
 
   function scrollSunMoonToFocus(smooth) { sunMoonChart.scrollToFocus(smooth); }

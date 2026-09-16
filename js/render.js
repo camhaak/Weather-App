@@ -1,14 +1,8 @@
-  function renderForDate(dateStr, smoothSunMoonScroll) {
-    const m = computeDayMetrics(dateStr);
-    if (!m) { contentEl.innerHTML = `<div class="status">No weather data available for this date.</div>`; return; }
-
-    const colors = heroColorsFor(m.desc.kind);
+  // The "Through the day / This week at a glance" block, its own panel independent of the hero,
+  // compare table, and either chart — extracted so the Daily/Weekly toggle can rebuild just this
+  // (see wireOutlookToggle/refreshOutlookBlock) instead of the whole dated-content area.
+  function buildOutlookBlockHtml(dateStr, m) {
     const hourlyTimes = weatherData.hourly.time;
-    const minIdxDate = weatherData.daily.time[0];
-    const maxIdxDate = weatherData.daily.time[weatherData.daily.time.length - 1];
-    const canPrev = dateStr !== minIdxDate;
-    const canNext = dateStr !== maxIdxDate;
-
     const slotHours = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
     const nowHour = m.isToday ? (new Date(weatherData.current.time)).getHours().toString().padStart(2, '0') : null;
     const hourlyHtml = slotHours.map(hh => {
@@ -30,6 +24,53 @@
       const desc2 = describeCode(weatherData.daily.weather_code[i]);
       return `<div class="daily-row" data-date="${d}"><div class="day">${chipLabel(d, todayStr)}</div>${glyphFor(desc2.kind, '#6B7A99')}<div class="cond">${desc2.text}</div><div class="range"><span>${fmtTemp(weatherData.daily.temperature_2m_max[i])}</span> <span class="lo">${fmtTemp(weatherData.daily.temperature_2m_min[i])}</span></div></div>`;
     }).join('');
+
+    return `
+      <div id="outlookBlock">
+        <p class="section-label outlook-label">
+          <span>${outlookView === 'daily' ? 'Through the day' : 'This week at a glance'}</span>
+          <span class="outlook-label-sep">|</span>
+          <span class="outlook-toggle" id="outlookToggle">
+            <button data-view="daily" class="${outlookView === 'daily' ? 'active' : ''}">Daily</button>
+            <button data-view="weekly" class="${outlookView === 'weekly' ? 'active' : ''}">Weekly</button>
+          </span>
+        </p>
+        ${outlookView === 'daily'
+          ? `<div class="hourly-strip">${hourlyHtml}</div>`
+          : `<div class="daily-list">${dailyHtml}</div>`}
+      </div>
+    `;
+  }
+
+  function wireOutlookToggle() {
+    document.querySelectorAll('#outlookToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        outlookView = btn.dataset.view;
+        refreshOutlookBlock();
+      });
+    });
+    document.querySelectorAll('.daily-row').forEach(row => {
+      row.addEventListener('click', () => selectDate(row.dataset.date, true));
+    });
+  }
+
+  function refreshOutlookBlock() {
+    const el = document.getElementById('outlookBlock');
+    const m = computeDayMetrics(selectedDateStr);
+    if (!el || !m) return;
+    el.outerHTML = buildOutlookBlockHtml(selectedDateStr, m);
+    wireOutlookToggle();
+  }
+
+  function renderForDate(dateStr, smoothScroll) {
+    const m = computeDayMetrics(dateStr);
+    if (!m) { contentEl.innerHTML = `<div class="status">No weather data available for this date.</div>`; return; }
+
+    const colors = heroColorsFor(m.desc.kind);
+    const minIdxDate = weatherData.daily.time[0];
+    const maxIdxDate = weatherData.daily.time[weatherData.daily.time.length - 1];
+    const canPrev = dateStr !== minIdxDate;
+    const canNext = dateStr !== maxIdxDate;
 
     const waterTempHtml = m.marineAvailable && m.waterTemp !== null
       ? `<div class="value">${fmtTemp(m.waterTemp)}</div>`
@@ -165,17 +206,7 @@
         <p class="section-label">Compare days <span class="sub">scroll to see more →</span></p>
         ${compareHtml}
 
-        <p class="section-label outlook-label">
-          <span>${outlookView === 'daily' ? 'Through the day' : 'This week at a glance'}</span>
-          <span class="outlook-label-sep">|</span>
-          <span class="outlook-toggle" id="outlookToggle">
-            <button data-view="daily" class="${outlookView === 'daily' ? 'active' : ''}">Daily</button>
-            <button data-view="weekly" class="${outlookView === 'weekly' ? 'active' : ''}">Weekly</button>
-          </span>
-        </p>
-        ${outlookView === 'daily'
-          ? `<div class="hourly-strip">${hourlyHtml}</div>`
-          : `<div class="daily-list">${dailyHtml}</div>`}
+        ${buildOutlookBlockHtml(dateStr, m)}
 
         ${renderTrendPanel()}
 
@@ -198,30 +229,16 @@
     document.getElementById('prevDayBtn').addEventListener('click', () => shiftDate(-1));
     document.getElementById('nextDayBtn').addEventListener('click', () => shiftDate(1));
 
-    document.querySelectorAll('#trendToggle button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        trendState.range = btn.dataset.range;
-        renderForDate(selectedDateStr);
-      });
-    });
-    document.querySelectorAll('#sunMoonToggle button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sunMoonState.range = btn.dataset.range;
-        renderForDate(selectedDateStr);
-      });
-    });
-    document.querySelectorAll('#outlookToggle button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        outlookView = btn.dataset.view;
-        renderForDate(selectedDateStr);
-      });
-    });
-    scrollSunMoonToFocus(!!smoothSunMoonScroll);
-    scrollTrendToFocus(!!smoothSunMoonScroll);
+    // Each toggle rebuilds only its own panel (see wireTrendToggle/wireSunMoonToggle/
+    // wireOutlookToggle) rather than calling renderForDate again — switching the sun/moon
+    // chart's zoom, for instance, has no reason to also rebuild the compare table and the
+    // (unrelated) temperature chart.
+    wireTrendToggle();
+    wireSunMoonToggle();
+    wireOutlookToggle();
+    scrollSunMoonToFocus(!!smoothScroll);
+    scrollTrendToFocus(!!smoothScroll);
 
-    document.querySelectorAll('.daily-row').forEach(row => {
-      row.addEventListener('click', () => selectDate(row.dataset.date, true));
-    });
     document.querySelectorAll('.compare-col').forEach(col => {
       col.addEventListener('click', () => selectDate(col.dataset.date, true));
     });

@@ -200,13 +200,13 @@
 
     document.querySelectorAll('#trendToggle button').forEach(btn => {
       btn.addEventListener('click', () => {
-        trendRange = btn.dataset.range;
+        trendState.range = btn.dataset.range;
         renderForDate(selectedDateStr);
       });
     });
     document.querySelectorAll('#sunMoonToggle button').forEach(btn => {
       btn.addEventListener('click', () => {
-        sunMoonRange = btn.dataset.range;
+        sunMoonState.range = btn.dataset.range;
         renderForDate(selectedDateStr);
       });
     });

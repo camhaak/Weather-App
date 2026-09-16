@@ -161,7 +161,7 @@
     // Interactive cursor: defaults to "now" until the user clicks/drags the chart to pin it elsewhere.
     // It snaps onto major/minor bite peaks and sunrise/sunset (see sunMoonSnappedTimeFromClientX),
     // taking on that event's color with a glow when locked, so it's easy to find and unmistakable.
-    const cursorTime = sunMoonCursorTime || new Date(weatherData.current.time);
+    const cursorTime = sunMoonState.cursorTime || new Date(weatherData.current.time);
     let cursorLine = '';
     if (cursorTime >= wStart && cursorTime <= wEnd) {
       const x = xForTime(cursorTime.getTime());
@@ -186,7 +186,7 @@
       ${cursorLine}${eventMarks}${dayLabels}
     </svg>`;
 
-    sunMoonChartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, majorTimesMs, minorTimesMs, sunEventTimesMs };
+    sunMoonState.chartMeta = { wStartMs: wStart.getTime(), wEndMs: wEnd.getTime(), pph, majorTimesMs, minorTimesMs, sunEventTimesMs };
     return svg;
   }
 
@@ -250,14 +250,14 @@
   }
 
   function updateSunMoonCursor(time) {
-    if (sunMoonChartMeta) {
-      const clampedMs = Math.min(sunMoonChartMeta.wEndMs, Math.max(sunMoonChartMeta.wStartMs, time.getTime()));
+    if (sunMoonState.chartMeta) {
+      const clampedMs = Math.min(sunMoonState.chartMeta.wEndMs, Math.max(sunMoonState.chartMeta.wStartMs, time.getTime()));
       time = new Date(clampedMs);
     }
-    sunMoonCursorTime = time;
-    if (sunMoonChartMeta) {
-      const x = ((time - sunMoonChartMeta.wStartMs) / 3600000) * sunMoonChartMeta.pph;
-      const snapColor = sunMoonSnapColor(time.getTime(), sunMoonChartMeta.majorTimesMs, sunMoonChartMeta.minorTimesMs, sunMoonChartMeta.sunEventTimesMs);
+    sunMoonState.cursorTime = time;
+    if (sunMoonState.chartMeta) {
+      const x = ((time - sunMoonState.chartMeta.wStartMs) / 3600000) * sunMoonState.chartMeta.pph;
+      const snapColor = sunMoonSnapColor(time.getTime(), sunMoonState.chartMeta.majorTimesMs, sunMoonState.chartMeta.minorTimesMs, sunMoonState.chartMeta.sunEventTimesMs);
       const isSnapped = snapColor !== null;
       const cursorColor = snapColor || chartTheme().text;
       const glow = document.getElementById('sunMoonCursorGlow');
@@ -274,21 +274,21 @@
   }
 
   function renderSunMoonPanel() {
-    const svg = buildSunMoonChart(sunMoonRange);
-    const cursorTime = sunMoonCursorTime || new Date(weatherData.current.time);
+    const svg = buildSunMoonChart(sunMoonState.range);
+    const cursorTime = sunMoonState.cursorTime || new Date(weatherData.current.time);
     return `
       <div class="panel trend-panel">
         <div class="trend-header">
           <p class="panel-title">Sun, moon &amp; bite times<button type="button" class="info-btn" id="sunMoonInfoBtn" aria-label="About this chart">i</button></p>
           <div class="trend-toggle" id="sunMoonToggle">
-            <button data-range="1" class="${sunMoonRange === '1' ? 'active' : ''}">1 Day</button>
-            <button data-range="3" class="${sunMoonRange === '3' ? 'active' : ''}">3 Day</button>
-            <button data-range="7" class="${sunMoonRange === '7' ? 'active' : ''}">Week</button>
+            <button data-range="1" class="${sunMoonState.range === '1' ? 'active' : ''}">1 Day</button>
+            <button data-range="3" class="${sunMoonState.range === '3' ? 'active' : ''}">3 Day</button>
+            <button data-range="7" class="${sunMoonState.range === '7' ? 'active' : ''}">Week</button>
           </div>
         </div>
         <div class="chart-info-popup" id="sunMoonInfoPopup" hidden>
           <button type="button" class="info-popup-close" id="sunMoonInfoCloseBtn" aria-label="Close">&times;</button>
-          ${sunMoonInfoPopupHtml(sunMoonRange)}
+          ${sunMoonInfoPopupHtml(sunMoonState.range)}
         </div>
         <div class="chart-cursor-info" id="sunMoonCursorInfo">${sunMoonCursorInfoHtml(cursorTime)}</div>
         <div class="sunmoon-chart-container">
@@ -313,8 +313,8 @@
     const days = weatherData.daily.time;
     const wStart = new Date(days[0] + 'T00:00:00');
     const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
-    const pph = sunMoonPPH(sunMoonRange);
-    const cursor = sunMoonCursorTime || new Date(weatherData.current.time);
+    const pph = sunMoonPPH(sunMoonState.range);
+    const cursor = sunMoonState.cursorTime || new Date(weatherData.current.time);
     const focusTime = (cursor >= wStart && cursor <= wEnd) ? cursor : new Date(selectedDateStr + 'T12:00:00');
     const x = ((focusTime - wStart) / 3600000) * pph;
     const left = Math.max(0, x - wrap.clientWidth / 2);
@@ -331,11 +331,11 @@
   function sunMoonTimeFromClientX(clientX) {
     const wrap = document.getElementById('sunMoonChartWrap');
     const svgEl = wrap && wrap.querySelector('svg');
-    if (!svgEl || !sunMoonChartMeta) return null;
+    if (!svgEl || !sunMoonState.chartMeta) return null;
     const rect = svgEl.getBoundingClientRect();
     const scale = svgEl.viewBox.baseVal.width / rect.width;
     const dataX = (clientX - rect.left) * scale;
-    const ms = sunMoonChartMeta.wStartMs + (dataX / sunMoonChartMeta.pph) * 3600000;
+    const ms = sunMoonState.chartMeta.wStartMs + (dataX / sunMoonState.chartMeta.pph) * 3600000;
     return new Date(ms);
   }
 
@@ -355,11 +355,11 @@
   // precisely without needing pixel-perfect dragging. When more than one is in range, whichever
   // is genuinely closest wins.
   function sunMoonSnapTime(rawTime) {
-    if (!rawTime || !sunMoonChartMeta) return rawTime;
+    if (!rawTime || !sunMoonState.chartMeta) return rawTime;
     const rawMs = rawTime.getTime();
     let best = null, bestDist = Infinity;
     SUNMOON_SNAP_WINDOWS.forEach(({ key, ms }) => {
-      (sunMoonChartMeta[key] || []).forEach(t => {
+      (sunMoonState.chartMeta[key] || []).forEach(t => {
         const dist = Math.abs(t - rawMs);
         if (dist <= ms && dist < bestDist) { bestDist = dist; best = t; }
       });
@@ -382,43 +382,43 @@
 
   function sunMoonAutoScrollStep() {
     const wrap = document.getElementById('sunMoonChartWrap');
-    if (!wrap || !draggingSunMoonCursor || sunMoonAutoScrollDir === 0) { sunMoonAutoScrollRAF = null; return; }
+    if (!wrap || !sunMoonState.draggingCursor || sunMoonState.autoScrollDir === 0) { sunMoonState.autoScrollRAF = null; return; }
     const maxScroll = wrap.scrollWidth - wrap.clientWidth;
-    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + sunMoonAutoScrollDir * sunMoonAutoScrollSpeed));
-    const time = sunMoonSnappedTimeFromClientX(sunMoonLastClientX);
+    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + sunMoonState.autoScrollDir * sunMoonState.autoScrollSpeed));
+    const time = sunMoonSnappedTimeFromClientX(sunMoonState.lastClientX);
     if (time) updateSunMoonCursor(time);
-    sunMoonAutoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
+    sunMoonState.autoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
   }
 
   function updateSunMoonAutoScroll(clientX) {
     const wrap = document.getElementById('sunMoonChartWrap');
-    if (!wrap) { sunMoonAutoScrollDir = 0; return; }
+    if (!wrap) { sunMoonState.autoScrollDir = 0; return; }
     const rect = wrap.getBoundingClientRect();
     const leftDist = clientX - rect.left;
     const rightDist = rect.right - clientX;
     if (leftDist < SUNMOON_EDGE_ZONE) {
-      sunMoonAutoScrollDir = -1;
-      sunMoonAutoScrollSpeed = SUNMOON_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / SUNMOON_EDGE_ZONE);
+      sunMoonState.autoScrollDir = -1;
+      sunMoonState.autoScrollSpeed = SUNMOON_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / SUNMOON_EDGE_ZONE);
     } else if (rightDist < SUNMOON_EDGE_ZONE) {
-      sunMoonAutoScrollDir = 1;
-      sunMoonAutoScrollSpeed = SUNMOON_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / SUNMOON_EDGE_ZONE);
+      sunMoonState.autoScrollDir = 1;
+      sunMoonState.autoScrollSpeed = SUNMOON_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / SUNMOON_EDGE_ZONE);
     } else {
-      sunMoonAutoScrollDir = 0;
+      sunMoonState.autoScrollDir = 0;
     }
-    if (sunMoonAutoScrollDir !== 0 && !sunMoonAutoScrollRAF) {
-      sunMoonAutoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
+    if (sunMoonState.autoScrollDir !== 0 && !sunMoonState.autoScrollRAF) {
+      sunMoonState.autoScrollRAF = requestAnimationFrame(sunMoonAutoScrollStep);
     }
   }
 
   function stopSunMoonAutoScroll() {
-    sunMoonAutoScrollDir = 0;
-    if (sunMoonAutoScrollRAF) { cancelAnimationFrame(sunMoonAutoScrollRAF); sunMoonAutoScrollRAF = null; }
+    sunMoonState.autoScrollDir = 0;
+    if (sunMoonState.autoScrollRAF) { cancelAnimationFrame(sunMoonState.autoScrollRAF); sunMoonState.autoScrollRAF = null; }
   }
 
   function handleSunMoonPointerDown(e) {
     if (e.target.id !== 'sunMoonCursorHandle') return;
-    draggingSunMoonCursor = true;
-    sunMoonLastClientX = e.clientX;
+    sunMoonState.draggingCursor = true;
+    sunMoonState.lastClientX = e.clientX;
     try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
     e.target.style.cursor = 'grabbing';
     const time = sunMoonSnappedTimeFromClientX(e.clientX);
@@ -427,16 +427,16 @@
   }
 
   function handleSunMoonPointerMove(e) {
-    if (!draggingSunMoonCursor) return;
-    sunMoonLastClientX = e.clientX;
+    if (!sunMoonState.draggingCursor) return;
+    sunMoonState.lastClientX = e.clientX;
     const time = sunMoonSnappedTimeFromClientX(e.clientX);
     if (time) updateSunMoonCursor(time);
     updateSunMoonAutoScroll(e.clientX);
   }
 
   function handleSunMoonPointerUp(e) {
-    if (!draggingSunMoonCursor) return;
-    draggingSunMoonCursor = false;
+    if (!sunMoonState.draggingCursor) return;
+    sunMoonState.draggingCursor = false;
     stopSunMoonAutoScroll();
     if (e.target.id === 'sunMoonCursorHandle') e.target.style.cursor = 'grab';
   }

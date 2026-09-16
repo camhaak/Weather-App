@@ -73,20 +73,20 @@
   let marineData = null;
   let todayStr = null;
   let selectedDateStr = null;
-  let trendRange = '1'; // '1' | '3' | '7'
   let outlookView = 'daily'; // 'daily' | 'weekly' — toggles the combined hourly/daily-list section
-  let sunMoonRange = '1'; // '1' | '3' | '7'
-  let sunMoonCursorTime = null; // Date the user clicked/dragged on the sun/moon chart, or null to track "now"
-  let sunMoonChartMeta = null; // { wStartMs, wEndMs, pph } from the most recent chart build, for pointer -> time math
-  let draggingSunMoonCursor = false;
-  let sunMoonLastClientX = 0;
-  let sunMoonAutoScrollDir = 0; // -1 (left), 0 (none), 1 (right)
-  let sunMoonAutoScrollSpeed = 0;
-  let sunMoonAutoScrollRAF = null;
-  let trendCursorTime = null; // Date the user clicked/dragged on the temperature chart, or null to track "now"
-  let trendChartMeta = null; // { wStartMs, wEndMs, pph, minV, maxV, plotTop, plotH, pts } from the most recent chart build
-  let draggingTrendCursor = false;
-  let trendLastClientX = 0;
-  let trendAutoScrollDir = 0;
-  let trendAutoScrollSpeed = 0;
-  let trendAutoScrollRAF = null;
+
+  // Per-chart cursor/scroll/zoom state for the temperature-trend and sun/moon/bite charts. Grouped
+  // into one object per chart (rather than ~8 loose globals each) so a shared chart-interaction
+  // module can close over "this chart's state" as a single value instead of a pile of getters.
+  //   range: '1' | '3' | '7' (days)
+  //   cursorTime: Date the user clicked/dragged the cursor to, or null to track "now"
+  //   chartMeta: geometry from the most recent chart build, for pointer -> time math
+  //   draggingCursor / lastClientX / autoScrollDir / autoScrollSpeed / autoScrollRAF: drag state
+  let trendState = {
+    range: '1', cursorTime: null, chartMeta: null, draggingCursor: false,
+    lastClientX: 0, autoScrollDir: 0, autoScrollSpeed: 0, autoScrollRAF: null,
+  };
+  let sunMoonState = {
+    range: '1', cursorTime: null, chartMeta: null, draggingCursor: false,
+    lastClientX: 0, autoScrollDir: 0, autoScrollSpeed: 0, autoScrollRAF: null,
+  };

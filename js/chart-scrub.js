@@ -120,6 +120,13 @@
       cfg.state.lastClientX = e.clientX;
       try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
       e.target.style.cursor = 'grabbing';
+      // The handle itself has touch-action:none, but it's only ~24px wide against a real finger's
+      // much wider contact point — as that drifts during a drag, the browser's gesture recognizer
+      // can decide the touch belongs to the chart's own native horizontal scroll instead, silently
+      // handing part of the gesture over to it. Disabling scroll on the whole chart for the
+      // duration of the drag removes anywhere for the browser to hand it off to.
+      const wrap = document.getElementById(cfg.wrapId);
+      if (wrap) wrap.style.touchAction = 'none';
       const time = resolveTime(e.clientX);
       if (time) updateCursor(time);
       e.preventDefault();
@@ -138,6 +145,8 @@
       cfg.state.draggingCursor = false;
       stopAutoScroll();
       if (e.target.id === cfg.handleId) e.target.style.cursor = 'grab';
+      const wrap = document.getElementById(cfg.wrapId);
+      if (wrap) wrap.style.touchAction = '';
     }
 
     return {

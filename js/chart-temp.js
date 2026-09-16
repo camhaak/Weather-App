@@ -21,16 +21,6 @@
     return { ticks, min: niceMin, max: niceMax };
   }
 
-  // Chart SVGs are generated as raw hex strings in JS, so they can't pick up CSS variables —
-  // these are the handful of colors that genuinely need to flip in dark mode (navy text/lines
-  // have poor contrast on a dark panel; white dot outlines need a dark one instead). Saturated
-  // data colors (gold/teal/slate-blue accents) read fine unchanged in both themes.
-  function chartTheme() {
-    return darkMode
-      ? { text: '#E9ECF5', divider: '#333F5C', faintDivider: '#2A3350', dotStroke: '#1B2136', horizon: '#4A5878' }
-      : { text: '#1C2541', divider: '#DDD8CC', faintDivider: '#EEEAE0', dotStroke: '#fff', horizon: '#C9C2AE' };
-  }
-
   // Continuous hourly line across the full fetched date range, at a zoom-dependent pixel-per-hour
   // density — the same "infinitely scrollable" structure as buildSunMoonChart, so the two charts
   // behave consistently (persisted cursor, Today button, day-sync, etc. all reuse this shape).
@@ -148,132 +138,50 @@
     `;
   }
 
-  function updateTrendCursor(time) {
-    if (trendState.chartMeta) {
-      const clampedMs = Math.min(trendState.chartMeta.wEndMs, Math.max(trendState.chartMeta.wStartMs, time.getTime()));
-      time = new Date(clampedMs);
-      const idx = Math.round((time.getTime() - trendState.chartMeta.wStartMs) / 3600000);
-      const pt = trendState.chartMeta.pts[Math.max(0, Math.min(trendState.chartMeta.pts.length - 1, idx))];
-      if (pt) {
-        time = new Date(pt.t); // snap exactly onto the sampled hour, so the dot and legend always agree
-        const x = ((pt.t - trendState.chartMeta.wStartMs) / 3600000) * trendState.chartMeta.pph;
-        const y = trendState.chartMeta.plotTop + (1 - (pt.v - trendState.chartMeta.minV) / (trendState.chartMeta.maxV - trendState.chartMeta.minV)) * trendState.chartMeta.plotH;
-        const xLine = document.getElementById('trendCursorX');
-        const yLine = document.getElementById('trendCursorY');
-        const dot = document.getElementById('trendCursorDot');
-        const handle = document.getElementById('trendCursorHandle');
-        if (xLine) { xLine.setAttribute('x1', x); xLine.setAttribute('x2', x); }
-        if (yLine) { yLine.setAttribute('y1', y); yLine.setAttribute('y2', y); }
-        if (dot) { dot.setAttribute('cx', x); dot.setAttribute('cy', y); }
-        if (handle) handle.setAttribute('x', x - 12);
-      }
-    }
-    trendState.cursorTime = time;
-    const infoEl = document.getElementById('trendCursorInfo');
-    if (infoEl) infoEl.innerHTML = trendCursorInfoHtml(time);
+  // The only two ways the trend cursor's own behavior differs from the shared mechanism in
+  // chart-scrub.js: it re-snaps onto the nearest hourly sample on every update (so the dot and
+  // legend always agree with a real data point), and its dot sits at that sample's plotted
+  // temperature rather than a fixed height.
+  function trendSnapToSample(time, meta) {
+    const idx = Math.round((time.getTime() - meta.wStartMs) / 3600000);
+    const pt = meta.pts[Math.max(0, Math.min(meta.pts.length - 1, idx))];
+    return pt ? new Date(pt.t) : time;
   }
 
-  function scrollTrendToFocus(smooth) {
-    const wrap = document.getElementById('trendChartWrap');
-    if (!wrap) return;
-    const days = weatherData.daily.time;
-    const wStart = new Date(days[0] + 'T00:00:00');
-    const wEnd = new Date(days[days.length - 1] + 'T23:59:59');
-    const pph = trendPPH(trendState.range);
-    const cursor = trendState.cursorTime || new Date(weatherData.current.time);
-    const focusTime = (cursor >= wStart && cursor <= wEnd) ? cursor : new Date(selectedDateStr + 'T12:00:00');
-    const x = ((focusTime - wStart) / 3600000) * pph;
-    const left = Math.max(0, x - wrap.clientWidth / 2);
-    if (smooth) wrap.scrollTo({ left, behavior: 'smooth' });
-    else wrap.scrollLeft = left;
+  function trendComputeY(time, meta) {
+    const idx = Math.round((time.getTime() - meta.wStartMs) / 3600000);
+    const pt = meta.pts[Math.max(0, Math.min(meta.pts.length - 1, idx))];
+    return pt ? meta.plotTop + (1 - (pt.v - meta.minV) / (meta.maxV - meta.minV)) * meta.plotH : null;
   }
 
-  function jumpTrendToToday() {
-    if (!weatherData) return;
-    updateTrendCursor(new Date(weatherData.current.time));
-    scrollTrendToFocus(true);
+  function trendPaintCursor(x, y, time) {
+    const xLine = document.getElementById('trendCursorX');
+    const yLine = document.getElementById('trendCursorY');
+    const dot = document.getElementById('trendCursorDot');
+    const handle = document.getElementById('trendCursorHandle');
+    if (xLine) { xLine.setAttribute('x1', x); xLine.setAttribute('x2', x); }
+    if (yLine) { yLine.setAttribute('y1', y); yLine.setAttribute('y2', y); }
+    if (dot) { dot.setAttribute('cx', x); dot.setAttribute('cy', y); }
+    if (handle) handle.setAttribute('x', x - 12);
   }
 
-  function trendTimeFromClientX(clientX) {
-    const wrap = document.getElementById('trendChartWrap');
-    const svgEl = wrap && wrap.querySelector('svg');
-    if (!svgEl || !trendState.chartMeta) return null;
-    const rect = svgEl.getBoundingClientRect();
-    const scale = svgEl.viewBox.baseVal.width / rect.width;
-    const dataX = (clientX - rect.left) * scale;
-    const ms = trendState.chartMeta.wStartMs + (dataX / trendState.chartMeta.pph) * 3600000;
-    return new Date(ms);
-  }
-
-  function handleTrendChartClick(e) {
-    if (e.target.id === 'trendCursorHandle') return;
-    const time = trendTimeFromClientX(e.clientX);
-    if (time) updateTrendCursor(time);
-  }
-
-  const TREND_EDGE_ZONE = 50;
-  const TREND_MAX_SCROLL_SPEED = 14;
-
-  function trendAutoScrollStep() {
-    const wrap = document.getElementById('trendChartWrap');
-    if (!wrap || !trendState.draggingCursor || trendState.autoScrollDir === 0) { trendState.autoScrollRAF = null; return; }
-    const maxScroll = wrap.scrollWidth - wrap.clientWidth;
-    wrap.scrollLeft = Math.max(0, Math.min(maxScroll, wrap.scrollLeft + trendState.autoScrollDir * trendState.autoScrollSpeed));
-    const time = trendTimeFromClientX(trendState.lastClientX);
-    if (time) updateTrendCursor(time);
-    trendState.autoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
-  }
-
-  function updateTrendAutoScroll(clientX) {
-    const wrap = document.getElementById('trendChartWrap');
-    if (!wrap) { trendState.autoScrollDir = 0; return; }
-    const rect = wrap.getBoundingClientRect();
-    const leftDist = clientX - rect.left;
-    const rightDist = rect.right - clientX;
-    if (leftDist < TREND_EDGE_ZONE) {
-      trendState.autoScrollDir = -1;
-      trendState.autoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, leftDist) / TREND_EDGE_ZONE);
-    } else if (rightDist < TREND_EDGE_ZONE) {
-      trendState.autoScrollDir = 1;
-      trendState.autoScrollSpeed = TREND_MAX_SCROLL_SPEED * (1 - Math.max(0, rightDist) / TREND_EDGE_ZONE);
-    } else {
-      trendState.autoScrollDir = 0;
-    }
-    if (trendState.autoScrollDir !== 0 && !trendState.autoScrollRAF) {
-      trendState.autoScrollRAF = requestAnimationFrame(trendAutoScrollStep);
-    }
-  }
-
-  function stopTrendAutoScroll() {
-    trendState.autoScrollDir = 0;
-    if (trendState.autoScrollRAF) { cancelAnimationFrame(trendState.autoScrollRAF); trendState.autoScrollRAF = null; }
-  }
-
-  function handleTrendPointerDown(e) {
-    if (e.target.id !== 'trendCursorHandle') return;
-    trendState.draggingCursor = true;
-    trendState.lastClientX = e.clientX;
-    try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
-    e.target.style.cursor = 'grabbing';
-    const time = trendTimeFromClientX(e.clientX);
-    if (time) updateTrendCursor(time);
-    e.preventDefault();
-  }
-
-  function handleTrendPointerMove(e) {
-    if (!trendState.draggingCursor) return;
-    trendState.lastClientX = e.clientX;
-    const time = trendTimeFromClientX(e.clientX);
-    if (time) updateTrendCursor(time);
-    updateTrendAutoScroll(e.clientX);
-  }
-
-  function handleTrendPointerUp(e) {
-    if (!trendState.draggingCursor) return;
-    trendState.draggingCursor = false;
-    stopTrendAutoScroll();
-    if (e.target.id === 'trendCursorHandle') e.target.style.cursor = 'grab';
-  }
+  const trendChart = createScrubbableChart({
+    state: trendState,
+    wrapId: 'trendChartWrap', handleId: 'trendCursorHandle', infoId: 'trendCursorInfo',
+    pph: trendPPH,
+    infoHtml: trendCursorInfoHtml,
+    snapCursorTime: trendSnapToSample,
+    computeY: trendComputeY,
+    paintCursor: trendPaintCursor,
+  });
+  function updateTrendCursor(time) { trendChart.updateCursor(time); }
+  function scrollTrendToFocus(smooth) { trendChart.scrollToFocus(smooth); }
+  function jumpTrendToToday() { trendChart.jumpToToday(); }
+  function trendTimeFromClientX(clientX) { return trendChart.timeFromClientX(clientX); }
+  function handleTrendChartClick(e) { trendChart.handleChartClick(e); }
+  function handleTrendPointerDown(e) { trendChart.handlePointerDown(e); }
+  function handleTrendPointerMove(e) { trendChart.handlePointerMove(e); }
+  function handleTrendPointerUp(e) { trendChart.handlePointerUp(e); }
 
   function trendInfoPopupHtml() {
     return `<p>Scroll to see the full forecast. Tap or drag the chart to move the cursor and read the time and temperature above — use the Today button to jump back to now.</p>`;

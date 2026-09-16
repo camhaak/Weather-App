@@ -124,3 +124,14 @@
     return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
   }
 
+  // Chart SVGs are generated as raw hex strings in JS, so they can't pick up CSS variables —
+  // these are the handful of colors that genuinely need to flip in dark mode (navy text/lines
+  // have poor contrast on a dark panel; white dot outlines need a dark one instead). Saturated
+  // data colors (gold/teal/slate-blue accents) read fine unchanged in both themes. Lives here
+  // rather than in either chart file since both charts (and render.js, radar.js) call it.
+  function chartTheme() {
+    return darkMode
+      ? { text: '#E9ECF5', divider: '#333F5C', faintDivider: '#2A3350', dotStroke: '#1B2136', horizon: '#4A5878' }
+      : { text: '#1C2541', divider: '#DDD8CC', faintDivider: '#EEEAE0', dotStroke: '#fff', horizon: '#C9C2AE' };
+  }
+
